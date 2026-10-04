@@ -16,9 +16,6 @@ maintenant_paris = datetime.now(fuseau_paris)
 # 3. Formater l'heure pour l'affichage (ex: 04/10/2026 à 21:45)
 heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
 
-# 4. Afficher dans votre application
-st.write(f"Heure actuelle à Paris : {heure_formatee}")
-
 
 # Masquer la barre d'outils et le badge GitHub
 hide_toolbar = """
@@ -150,7 +147,7 @@ def update_batch(quantite, utilisateur, date):
 if "user" not in st.session_state:
   st.session_state.user = None
 if "last_activity" not in st.session_state:
-  st.session_state.last_activity = datetime.now()
+  st.session_state.last_activity = datetime.now(fuseau_paris)
 
 # --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
 INACTIVITY_LIMIT = timedelta(minutes=5)
@@ -165,7 +162,7 @@ if st.session_state.user is not None:
     )
     st.rerun()
   else:
-    st.session_state.last_activity = datetime.now()
+    st.session_state.last_activity = datetime.now(fuseau_paris)
 
 
 # --- AUTHENTIFICATION ---
@@ -182,7 +179,7 @@ if st.session_state.user is None:
       if res:
         if res.get("status") == "success":
           st.session_state.user = res.get("user")
-          st.session_state.last_activity = datetime.now()
+          st.session_state.last_activity = datetime.now(fuseau_paris)
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
@@ -233,7 +230,7 @@ else:
           nouveau_statut = None
 
         if nouveau_statut:
-          date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+          date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
           update_sheet(
               id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
           )
@@ -272,7 +269,7 @@ else:
       )
 
       if st.button("Valider le départ du lot"):
-        date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
         res_batch = update_batch(
             quantite_a_prendre, user.get("Nom"), date_du_jour
         )
@@ -300,7 +297,7 @@ else:
         if mask.any():
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
           if statut_actuel in ["En rechargement", "Vide"]:
-            date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
             update_sheet(
                 id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
             )
