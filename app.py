@@ -4,6 +4,19 @@ import requests
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 
+import streamlit as st
+
+# Masquer la barre d'outils et le badge GitHub
+hide_toolbar = """
+    <style>
+    div[data-testid="stToolbar"] {
+        display: none !important;
+    }
+    </style>
+"""
+st.markdown(hide_toolbar, unsafe_allow_html=True)
+
+
 # 1. VOS LIENS DE DESIGN (laissez vide "" si besoin)
 URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
