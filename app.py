@@ -3,18 +3,17 @@ import pandas as pd
 import requests
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
-from datetime import datetime
+
 from zoneinfo import ZoneInfo
 
 
 # 1. Définir le fuseau horaire de Paris
-fuseau_paris = ZoneInfo("Europe/Paris")
+# fuseau_paris = ZoneInfo("Europe/Paris")
 
 # 2. Récupérer l'heure actuelle à Paris (gère automatiquement l'été et l'hiver)
-maintenant_paris = datetime.now(fuseau_paris)
+# maintenant_paris = datetime.now(fuseau_paris)
 
-# 3. Formater l'heure pour l'affichage (ex: 04/10/2026 à 21:45)
-heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
+
 
 
 # Masquer la barre d'outils et le badge GitHub
