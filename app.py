@@ -4,17 +4,7 @@ import requests
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 
-from zoneinfo import ZoneInfo
-
-
-# 1. Définir le fuseau horaire de Paris
-# fuseau_paris = ZoneInfo("Europe/Paris")
-
-# 2. Récupérer l'heure actuelle à Paris (gère automatiquement l'été et l'hiver)
-# maintenant_paris = datetime.now(fuseau_paris)
-
-
-
+import streamlit as st
 
 # Masquer la barre d'outils et le badge GitHub
 hide_toolbar = """
