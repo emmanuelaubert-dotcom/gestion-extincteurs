@@ -17,19 +17,19 @@ st.set_page_config(
 
 # STYLE GLOBAL (IMAGE DE FOND, TAILLE DES TEXTES, BOUTONS)
 st.markdown(
-    f"""
+    """
     <style>
-    .stApp {{
+    .stApp {
         background-image: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url("{URL_FOND}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
-    }}
+    }
     html, body, [class*="css"] {{ font-size: 18px; }}
-    .stButton>button {{ width: 100%; height: 3.5em; font-size: 20px; font-weight: bold; border-radius: 10px; }}
-    h1 {{ font-size: 32px !important; }}
-    h2 {{ font-size: 26px !important; }}
-    h3 {{ font-size: 22px !important; }}
+    .stButton>button { width: 100%; height: 3.5em; font-size: 20px; font-weight: bold; border-radius: 10px; }
+    h1 { font-size: 32px !important; }
+    h2 { font-size: 26px !important; }
+    h3 { font-size: 22px !important; }
 
     /* Contour noir autour du champ de saisie de connexion */
     .stTextInput input {
