@@ -147,12 +147,12 @@ def update_batch(quantite, utilisateur, date):
 if "user" not in st.session_state:
   st.session_state.user = None
 if "last_activity" not in st.session_state:
-  st.session_state.last_activity = datetime.now(fuseau_paris)
+  st.session_state.last_activity = datetime.now()
 
 # --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
 INACTIVITY_LIMIT = timedelta(minutes=5)
 if st.session_state.user is not None:
-  if datetime.now(fuseau_paris) - st.session_state.last_activity > INACTIVITY_LIMIT:
+  if datetime.now() - st.session_state.last_activity > INACTIVITY_LIMIT:
     code_actuel = str(st.session_state.user.get("Code"))
     logout_user(code_actuel)
     st.session_state.user = None
@@ -162,7 +162,7 @@ if st.session_state.user is not None:
     )
     st.rerun()
   else:
-    st.session_state.last_activity = datetime.now(fuseau_paris)
+    st.session_state.last_activity = datetime.now()
 
 
 # --- AUTHENTIFICATION ---
@@ -179,7 +179,7 @@ if st.session_state.user is None:
       if res:
         if res.get("status") == "success":
           st.session_state.user = res.get("user")
-          st.session_state.last_activity = datetime.now(fuseau_paris)
+          st.session_state.last_activity = datetime.now()
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
