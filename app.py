@@ -230,7 +230,7 @@ else:
           nouveau_statut = None
 
         if nouveau_statut:
-          date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+          date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
           update_sheet(
               id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
           )
@@ -269,7 +269,7 @@ else:
       )
 
       if st.button("Valider le départ du lot"):
-        date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+        date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         res_batch = update_batch(
             quantite_a_prendre, user.get("Nom"), date_du_jour
         )
@@ -297,7 +297,7 @@ else:
         if mask.any():
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
           if statut_actuel in ["En rechargement", "Vide"]:
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+            date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             update_sheet(
                 id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
             )
