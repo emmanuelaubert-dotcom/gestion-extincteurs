@@ -30,10 +30,29 @@ st.markdown(
     h1 {{ font-size: 32px !important; }}
     h2 {{ font-size: 26px !important; }}
     h3 {{ font-size: 22px !important; }}
+
+    /* Contour noir autour du champ de saisie de connexion */
+    .stTextInput input {
+        border: 2px solid black !important;
+        border-radius: 8px !important;
+    }
+    
+    .footer-deconnexion {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: bold;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
     </style>
 """,
     unsafe_allow_html=True,
 )
+
+
 
 if URL_LOGO:
   st.sidebar.image(URL_LOGO, use_container_width=True)
@@ -266,3 +285,16 @@ else:
             st.warning(f"⚠️ Cet extincteur est déjà au statut : {statut_actuel}")
         else:
           st.error("❌ ID introuvable.")
+
+ # --- AJOUT DU RAPPEL ET DU BOUTON DE DÉCONNEXION EN BAS DE TOUTES LES PAGES ---
+  st.markdown("---")
+  st.markdown(
+      '<div class="footer-deconnexion">⚠️ Une fois fini de scanner les'
+      " extincteurs, pensez à vous déconnecter !</div>",
+      unsafe_allow_html=True,
+  )
+
+  if st.button("🔒 Se déconnecter maintenant"):
+    logout_user(str(user.get("Code")))
+    st.session_state.user = None
+    st.rerun()
