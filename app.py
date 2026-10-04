@@ -152,7 +152,7 @@ if "last_activity" not in st.session_state:
 # --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
 INACTIVITY_LIMIT = timedelta(minutes=5)
 if st.session_state.user is not None:
-  if datetime.now() - st.session_state.last_activity > INACTIVITY_LIMIT:
+  if datetime.now(fuseau_paris) - st.session_state.last_activity > INACTIVITY_LIMIT:
     code_actuel = str(st.session_state.user.get("Code"))
     logout_user(code_actuel)
     st.session_state.user = None
