@@ -33,7 +33,7 @@ URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 
 # METTEZ ICI L'URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT :
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJddRzksAIb6Y80NTf6ymKfiLPQU6pHiNqwHgJRupERpq_J4tMQHgR594TW1QVwIw/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXmza8s6v8vGivz5j9SYt_kB7GKcBjK1kvDnt0n9QV5uVagLS5jnQaVRE3FjGR5CU/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
@@ -78,7 +78,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 def get_data():
   try:
     response = requests.get(APPS_SCRIPT_URL + "?action=getData")
@@ -95,9 +94,8 @@ def get_data():
 
 def attempt_login(code):
   try:
-    response = requests.get(
-        APPS_SCRIPT_URL, params={"action": "login", "code": code}
-    )
+    # On utilise POST pour éviter les interférences de cache
+    response = requests.post(APPS_SCRIPT_URL, data={"action": "login", "code": code})
     return response.json()
   except Exception as e:
     st.error(f"Erreur de connexion : {e}")
@@ -109,7 +107,7 @@ def logout_user(code, actions_data=None):
     params = {"action": "logout", "code": code}
     if actions_data:
       params["actions"] = json.dumps(actions_data)
-    requests.get(APPS_SCRIPT_URL, params=params)
+    requests.post(APPS_SCRIPT_URL, data=params)
   except Exception as e:
     pass
 
@@ -123,7 +121,7 @@ def update_sheet(id_ext, statut, utilisateur, date):
         "utilisateur": utilisateur,
         "date": date,
     }
-    requests.get(APPS_SCRIPT_URL, params=params)
+    requests.post(APPS_SCRIPT_URL, data=params)
   except Exception as e:
     st.error(f"Erreur lors de la mise à jour : {e}")
 
@@ -136,7 +134,7 @@ def update_batch(quantite, utilisateur, date):
         "utilisateur": utilisateur,
         "date": date,
     }
-    response = requests.get(APPS_SCRIPT_URL, params=params)
+    response = requests.post(APPS_SCRIPT_URL, data=params)
     return response.json()
   except Exception as e:
     st.error(f"Erreur lors de la validation du lot : {e}")
@@ -152,12 +150,11 @@ def update_specklettes(action_type, quantite, utilisateur, date):
         "utilisateur": utilisateur,
         "date": date,
     }
-    response = requests.get(APPS_SCRIPT_URL, params=params)
+    response = requests.post(APPS_SCRIPT_URL, data=params)
     return response.json()
   except Exception as e:
     st.error(f"Erreur lors de la mise à jour des specklettes : {e}")
     return None
-
 
 # --- GESTION DES ÉTATS GLOBAUX ---
 if "user" not in st.session_state:
