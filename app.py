@@ -33,7 +33,7 @@ URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 
 # METTEZ ICI L'URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT :
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwT6-3klYJ6wZFeaFvE4JL_esNiWQngY36Gz39LCq8Du5DlZT_hOl6GSVrCkH24wD8/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhE7M51w-ABFbZo9wumraylFbmiFxGQsvDRJy9DlcHMyL1RLBWYgA8HRUaJ18cZeo/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
@@ -121,9 +121,27 @@ def update_sheet(id_ext, statut, utilisateur, date):
         "utilisateur": utilisateur,
         "date": date,
     }
-    requests.post(APPS_SCRIPT_URL, data=params)
+    response = requests.post(APPS_SCRIPT_URL, data=params)
+    res_data = response.json()
+
+    if res_data.get("status") == "too_soon":
+      mins = res_data.get("minutes", 60)
+      st.warning(
+          f"⏳ Cet extincteur a déjà été modifié il y a moins d'une heure."
+          f" Veuillez patienter encore environ {mins} minute(s)."
+      )
+      return False
+    elif res_data.get("status") == "success":
+      # Incrémente le compteur de session pour le bilan par mail
+      if "stats_session" in st.session_state and statut in st.session_state["stats_session"]:
+        st.session_state["stats_session"][statut] += 1
+      return True
+    else:
+      st.error("Erreur lors de la mise à jour.")
+      return False
   except Exception as e:
-    st.error(f"Erreur lors de la mise à jour : {e}")
+    st.error(f"Erreur de communication : {e}")
+    return False
 
 
 def update_batch(quantite, utilisateur, date):
@@ -445,3 +463,19 @@ else:
         
         # 4. Redémarrage propre vers l'écran de connexion
         st.rerun()
+import json
+
+# Récupération des stats stockées pendant la session
+stats_json = json.dumps(
+    st.session_state.get(
+        "stats_session",
+        {"En formation": 0, "Vide": 0, "En rechargement": 0, "Pleins": 0},
+    )
+)
+
+params = {
+    "action": "logout",
+    "code": code_utilisateur,
+    "actions": stats_json,
+}
+response = requests.get(APPS_SCRIPT_URL, params=params)
