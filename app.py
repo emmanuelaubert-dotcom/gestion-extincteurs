@@ -102,15 +102,25 @@ def attempt_login(code):
     return None
 
 
-def logout_user(code, actions_data=None):
-  try:
-    params = {"action": "logout", "code": code}
-    if actions_data:
-      params["actions"] = json.dumps(actions_data)
-    requests.post(APPS_SCRIPT_URL, data=params)
-  except Exception as e:
-    pass
 
+def logout_user(code_utilisateur, actions_bilan):
+  try:
+    # On extrait uniquement les statuts qui nous intéressent du dictionnaire de session,
+    # ou on envoie tout le dictionnaire s'il contient déjà nos compteurs.
+    # Ici, on cible nos 4 statuts principaux :
+    stats_a_envoyer = {
+        "En formation": actions_bilan.get("En formation", 0),
+        "Vide": actions_bilan.get("Vide", 0),
+        "En rechargement": actions_bilan.get("En rechargement", 0),
+        "Pleins": actions_bilan.get("Pleins", 0),
+    }
+
+    stats_json = json.dumps(stats_a_envoyer)
+
+    params = {"action": "logout", "code": code_utilisateur, "actions": stats_json}
+    requests.get(APPS_SCRIPT_URL, params=params)
+  except Exception as e:
+    print(f"Erreur lors de la déconnexion : {e}")
 
 def update_sheet(id_ext, statut, utilisateur, date):
   try:
@@ -229,6 +239,10 @@ if st.session_state.user is None:
               "extincteurs_recharges": [],
               "extincteurs_formation": 0,  # Nouveau compteur pour les "En formation"
               "extincteurs_pleins_prestataire": 0, # Nouveau compteur pour le prestataire
+              "En formation": 0,  # 👈 Ajouté pour le mail (correspond au statut dans Google Sheets)
+              "Vide": 0,  # 👈 Ajouté pour le mail
+              "En rechargement": 0,  # 👈 Ajouté pour le mail
+              "Pleins": 0,  # 👈 Ajouté pour le mail
               "specklettes_prises": 0,
               "specklettes_deposees": 0,
           }
@@ -463,19 +477,3 @@ else:
         
         # 4. Redémarrage propre vers l'écran de connexion
         st.rerun()
-import json
-
-# Récupération des stats stockées pendant la session
-stats_json = json.dumps(
-    st.session_state.get(
-        "stats_session",
-        {"En formation": 0, "Vide": 0, "En rechargement": 0, "Pleins": 0},
-    )
-)
-
-params = {
-    "action": "logout",
-    "code": code_utilisateur,
-    "actions": stats_json,
-}
-response = requests.get(APPS_SCRIPT_URL, params=params)
