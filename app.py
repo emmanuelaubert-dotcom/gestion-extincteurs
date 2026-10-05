@@ -328,7 +328,7 @@ else:
             update_sheet(
                 str(id_scanne), nouveau_statut, user.get("Nom"), date_du_jour
             )
-              st.session_state.session_actions["extincteurs_formation"] += 1
+            st.session_state.session_actions["extincteurs_formation"] += 1
             st.success(
                 f"✅ Extincteur **{nom_extincteur}** mis à jour : **{nouveau_statut}**"
             )
