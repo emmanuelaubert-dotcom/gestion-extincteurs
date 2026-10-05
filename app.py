@@ -427,18 +427,24 @@ else:
           else:
             st.error("❌ Code QR introuvable.")
 
-    # --- DÉCONNEXION FINALE EN BAS DE LA PAGE DE TRAVAIL ---
+   # --- DÉCONNEXION FINALE DIRECTE ET SÉCURISÉE ---
     st.markdown("---")
     st.markdown(
-        '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour envoyer le bilan et vous déconnecter !</div>',
+        '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour envoyer le bilan et vous déconnecter en toute sécurité !</div>',
         unsafe_allow_html=True,
     )
 
+    # Bouton direct et instantané sans formulaire lourd
     if st.button("🔒 Se déconnecter et envoyer le bilan", key="btn_deconnexion_bas"):
-      actions_bilan = st.session_state.get("session_actions", None)
-      logout_user(str(user.get("Code")), actions_bilan)
-      st.session_state.user = None
-      st.session_state.etape_utilisateur = (
-          "specklettes"  # Remise à zéro pour la prochaine connexion
-      )
-      st.rerun()
+        # 1. On récupère les infos avant de tout effacer
+        code_utilisateur = str(user.get("Code"))
+        actions_bilan = st.session_state.get("session_actions", None)
+
+        # 2. On envoie l'ordre de déconnexion (bilan + statut 'Non' dans Google Sheets)
+        logout_user(code_utilisateur, actions_bilan)
+        
+        # 3. Nettoyage total et instantané de la session locale pour couper net tout cache ou scan résiduel
+        st.session_state.clear()
+        
+        # 4. Redémarrage propre vers l'écran de connexion
+        st.rerun()
