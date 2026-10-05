@@ -3,8 +3,19 @@ import pandas as pd
 import requests
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-import streamlit as st
+
+# 1. Définir le fuseau horaire de Paris
+fuseau_paris = ZoneInfo("Europe/Paris")
+
+# 2. Récupérer l'heure actuelle à Paris (gère automatiquement l'été et l'hiver)
+maintenant_paris = datetime.now(fuseau_paris)
+
+# 3. Formater l'heure pour l'affichage (ex: 04/10/2026 à 21:45)
+heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
+
 
 # Masquer la barre d'outils et le badge GitHub
 hide_toolbar = """
@@ -131,17 +142,32 @@ def update_batch(quantite, utilisateur, date):
     st.error(f"Erreur lors de la validation du lot : {e}")
     return None
 
+# --- FONCTION SPECKLETTES AJOUTÉE ICI ---
+def update_specklettes(action_type, quantite, utilisateur, date):
+  try:
+    params = {
+        "action": "updateSpecklettes",
+        "type_action": action_type,  # Ex: "pris" ou "depose"
+        "quantite": quantite,
+        "utilisateur": utilisateur,
+        "date": date,
+    }
+    response = requests.get(APPS_SCRIPT_URL, params=params)
+    return response.json()
+  except Exception as e:
+    st.error(f"Erreur lors de la mise à jour des specklettes : {e}")
+    return None
 
 # --- GESTION DES ÉTATS GLOBAUX ---
 if "user" not in st.session_state:
   st.session_state.user = None
 if "last_activity" not in st.session_state:
-  st.session_state.last_activity = datetime.now()
+  st.session_state.last_activity = datetime.now(fuseau_paris)
 
 # --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
 INACTIVITY_LIMIT = timedelta(minutes=5)
 if st.session_state.user is not None:
-  if datetime.now() - st.session_state.last_activity > INACTIVITY_LIMIT:
+  if datetime.now(fuseau_paris) - st.session_state.last_activity > INACTIVITY_LIMIT:
     code_actuel = str(st.session_state.user.get("Code"))
     logout_user(code_actuel)
     st.session_state.user = None
@@ -151,7 +177,7 @@ if st.session_state.user is not None:
     )
     st.rerun()
   else:
-    st.session_state.last_activity = datetime.now()
+    st.session_state.last_activity = datetime.now(fuseau_paris)
 
 
 # --- AUTHENTIFICATION ---
@@ -168,7 +194,7 @@ if st.session_state.user is None:
       if res:
         if res.get("status") == "success":
           st.session_state.user = res.get("user")
-          st.session_state.last_activity = datetime.now()
+          st.session_state.last_activity = datetime.now(fuseau_paris)
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
@@ -196,10 +222,42 @@ else:
   # FORMATEUR
   if str(user.get("Role")).strip().lower() == "formateur":
     st.title("🧯 Formateur")
-    st.write(
-        "Scannez le QR code de l'extincteur."
-    )
+     
+     # --- ENCART RÉCAPITULATIF FORMATEUR ---
+    total_pleins = len(df_ext[df_ext["Statut"] == "Plein"])
+    total_en_formation = len(df_ext[df_ext["Statut"] == "En formation"])
+    total_vides = len(df_ext[df_ext["Statut"] == "Vide"])
 
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Pleins", total_pleins)
+    col2.metric("En formation", total_en_formation)
+    col3.metric("Vides", total_vides)
+    st.markdown("---")
+    # -------------------------------------
+
+      # --- ENCART SPECKLETTES INTÉGRÉ ICI ---
+    st.markdown("### 💧 Gestion des Specklettes")
+    col_sp1, col_sp2 = st.columns(2)
+    
+    with col_sp1:
+        st.write("**Pris / Emportés**")
+        qte_pris = st.number_input("Quantité prise", min_value=1, max_value=50, value=1, key="qte_pris_sp")
+        if st.button("Valider prise specklettes"):
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+            update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
+            st.success(f"✅ {qte_pris} specklette(s) enregistrée(s) comme prises.")
+            
+    with col_sp2:
+        st.write("**Déposés / Restitués**")
+        qte_depose = st.number_input("Quantité déposée", min_value=1, max_value=50, value=1, key="qte_depose_sp")
+        if st.button("Valider dépôt specklettes"):
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+            update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
+            st.success(f"✅ {qte_depose} specklette(s) enregistrée(s) comme déposées.")
+            
+    st.markdown("---")
+    # ---------------------------------------
+      
     id_scanne = qrcode_scanner(key="scanner_formateur")
 
     if id_scanne:
@@ -219,7 +277,7 @@ else:
           nouveau_statut = None
 
         if nouveau_statut:
-          date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+          date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
           update_sheet(
               id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
           )
@@ -237,6 +295,41 @@ else:
   elif str(user.get("Role")).strip().lower() == "prestataire":
     st.image("https://thumbs.dreamstime.com/b/extincteur-avec-rendu-d-camion-isol%C3%A9-sur-fond-blanc-272191597.jpg")
     st.title("🚚 Prestataire")
+      
+      # --- ENCART RÉCAPITULATIF PRESTATAIRE ---
+    nb_vides = len(df_ext[df_ext["Statut"] == "Vide"])
+    nb_rechargement = len(df_ext[df_ext["Statut"] == "En rechargement"])
+    nb_pleins = len(df_ext[df_ext["Statut"] == "Plein"])
+
+    st.markdown("### 📊 État du parc")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("À récupérer (Vides)", nb_vides)
+    col2.metric("En rechargement", nb_rechargement)
+    col3.metric("Disponibles (Pleins)", nb_pleins)
+    st.markdown("---")
+    # ---------------------------------------
+      # --- ENCART SPECKLETTES INTÉGRÉ ICI ---
+    st.markdown("### 💧 Gestion des Specklettes")
+    col_sp1, col_sp2 = st.columns(2)
+    
+    with col_sp1:
+        st.write("**Pris / Emportés**")
+        qte_pris = st.number_input("Quantité prise", min_value=1, max_value=50, value=1, key="qte_pris_sp")
+        if st.button("Valider prise specklettes"):
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+            update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
+            st.success(f"✅ {qte_pris} specklette(s) enregistrée(s) comme prises.")
+            
+    with col_sp2:
+        st.write("**Déposés / Restitués**")
+        qte_depose = st.number_input("Quantité déposée", min_value=1, max_value=50, value=1, key="qte_depose_sp")
+        if st.button("Valider dépôt specklettes"):
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+            update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
+            st.success(f"✅ {qte_depose} specklette(s) enregistrée(s) comme déposées.")
+            
+    st.markdown("---")
+    # ---------------------------------------
     choix_action = st.radio(
         "Action :",
         (
@@ -258,7 +351,7 @@ else:
       )
 
       if st.button("Valider le départ du lot"):
-        date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
         res_batch = update_batch(
             quantite_a_prendre, user.get("Nom"), date_du_jour
         )
@@ -286,7 +379,7 @@ else:
         if mask.any():
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
           if statut_actuel in ["En rechargement", "Vide"]:
-            date_du_jour = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
             update_sheet(
                 id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
             )
@@ -299,15 +392,16 @@ else:
         else:
           st.error("❌ ID introuvable.")
 
- # --- AJOUT DU RAPPEL ET DU BOUTON DE DÉCONNEXION EN BAS DE TOUTES LES PAGES ---
-  st.markdown("---")
-  st.markdown(
-      '<div class="footer-deconnexion">⚠️ Une fois fini de scanner les'
-      " extincteurs, pensez à vous déconnecter !</div>",
-      unsafe_allow_html=True,
-  )
+# --- DÉCONNEXION EN FIN DE PAGE (ISOLÉE PROPREMENT) ---
+st.markdown("---")
+st.markdown(
+    '<div class="footer-deconnexion">⚠️ Une fois fini de scanner les'
+    " extincteurs, pensez à vous déconnecter !</div>",
+    unsafe_allow_html=True,
+)
 
-  if st.button("🔒 Se déconnecter maintenant"):
-    logout_user(str(user.get("Code")))
-    st.session_state.user = None
-    st.rerun()
+# Utilisation d'un conteneur dédié ou d'une vérification directe
+if st.button("🔒 Se déconnecter maintenant", key="btn_deconnexion_bas"):
+  logout_user(str(user.get("Code")))
+  st.session_state.user = None
+  st.rerun()
