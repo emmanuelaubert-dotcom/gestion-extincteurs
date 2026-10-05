@@ -212,6 +212,8 @@ if st.session_state.user is None:
           st.session_state.session_actions = {
               "extincteurs_vides": [],
               "extincteurs_recharges": [],
+              "extincteurs_formation": 0,  # Nouveau compteur pour les "En formation"
+              "extincteurs_pleins_prestataire": 0, # Nouveau compteur pour le prestataire
               "specklettes_prises": 0,
               "specklettes_deposees": 0,
           }
@@ -326,6 +328,7 @@ else:
             update_sheet(
                 str(id_scanne), nouveau_statut, user.get("Nom"), date_du_jour
             )
+              st.session_state.session_actions["extincteurs_formation"] += 1
             st.success(
                 f"✅ Extincteur **{nom_extincteur}** mis à jour : **{nouveau_statut}**"
             )
@@ -412,6 +415,7 @@ else:
               update_sheet(
                   str(id_scanne_retour), "Plein", user.get("Nom"), date_du_jour
               )
+                st.session_state.session_actions["extincteurs_pleins_prestataire"] += quantite_saisie
               st.success(
                   f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
                   " **Plein** !"
