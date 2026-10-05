@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
+import json
 import pandas as pd
 import requests
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
@@ -36,7 +36,9 @@ URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3fTCNDT5w8mlsxq1JHO_gUUz5ythgeGrzvl7n8rMEeWZdOGU7N7IIHAWQSAaV8h8/exec"
 
 st.set_page_config(
-    page_title="Gestion Extincteurs", page_icon="https://img.icons8.com/stickers/1200/fire-extinguisher.jpg", layout="centered"
+    page_title="Gestion Extincteurs",
+    page_icon="https://img.icons8.com/stickers/1200/fire-extinguisher.jpg",
+    layout="centered",
 )
 
 # STYLE GLOBAL (IMAGE DE FOND, TAILLE DES TEXTES, BOUTONS)
@@ -77,11 +79,6 @@ st.markdown(
 )
 
 
-
-if URL_LOGO:
-  st.sidebar.image(URL_LOGO, use_container_width=True)
-
-
 def get_data():
   try:
     response = requests.get(APPS_SCRIPT_URL + "?action=getData")
@@ -107,9 +104,12 @@ def attempt_login(code):
     return None
 
 
-def logout_user(code):
+def logout_user(code, actions_data=None):
   try:
-    requests.get(APPS_SCRIPT_URL, params={"action": "logout", "code": code})
+    params = {"action": "logout", "code": code}
+    if actions_data:
+      params["actions"] = json.dumps(actions_data)
+    requests.get(APPS_SCRIPT_URL, params=params)
   except Exception as e:
     pass
 
@@ -142,12 +142,12 @@ def update_batch(quantite, utilisateur, date):
     st.error(f"Erreur lors de la validation du lot : {e}")
     return None
 
-# --- FONCTION SPECKLETTES AJOUTÉE ICI ---
+
 def update_specklettes(action_type, quantite, utilisateur, date):
   try:
     params = {
         "action": "updateSpecklettes",
-        "type_action": action_type,  # Ex: "pris" ou "depose"
+        "type_action": action_type,
         "quantite": quantite,
         "utilisateur": utilisateur,
         "date": date,
@@ -158,18 +158,29 @@ def update_specklettes(action_type, quantite, utilisateur, date):
     st.error(f"Erreur lors de la mise à jour des specklettes : {e}")
     return None
 
+
 # --- GESTION DES ÉTATS GLOBAUX ---
 if "user" not in st.session_state:
   st.session_state.user = None
 if "last_activity" not in st.session_state:
   st.session_state.last_activity = datetime.now(fuseau_paris)
+if "session_actions" not in st.session_state:
+  st.session_state.session_actions = {
+      "extincteurs_vides": [],
+      "extincteurs_recharges": [],
+      "specklettes_prises": 0,
+      "specklettes_deposees": 0,
+  }
+if "etape_utilisateur" not in st.session_state:
+  st.session_state.etape_utilisateur = "specklettes"
 
 # --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
 INACTIVITY_LIMIT = timedelta(minutes=5)
 if st.session_state.user is not None:
   if datetime.now(fuseau_paris) - st.session_state.last_activity > INACTIVITY_LIMIT:
     code_actuel = str(st.session_state.user.get("Code"))
-    logout_user(code_actuel)
+    actions_bilan = st.session_state.get("session_actions", None)
+    logout_user(code_actuel, actions_bilan)
     st.session_state.user = None
     st.warning(
         "⏳ Session expirée suite à 5 minutes d'inactivité. Veuillez vous"
@@ -182,7 +193,9 @@ if st.session_state.user is not None:
 
 # --- AUTHENTIFICATION ---
 if st.session_state.user is None:
-  st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgi9peMxjPgEpbUU1SHhUBqaJa_GjKOId_5oPXARaqJw&s=10")
+  st.image(
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgi9peMxjPgEpbUU1SHhUBqaJa_GjKOId_5oPXARaqJw&s=10"
+  )
   st.title("🧯 Connexion")
   code_saisi = st.text_input("Code d'accès", type="password")
 
@@ -195,6 +208,14 @@ if st.session_state.user is None:
         if res.get("status") == "success":
           st.session_state.user = res.get("user")
           st.session_state.last_activity = datetime.now(fuseau_paris)
+          # Réinitialisation du bilan et remise à l'étape des specklettes
+          st.session_state.session_actions = {
+              "extincteurs_vides": [],
+              "extincteurs_recharges": [],
+              "specklettes_prises": 0,
+              "specklettes_deposees": 0,
+          }
+          st.session_state.etape_utilisateur = "specklettes"
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
@@ -206,202 +227,198 @@ if st.session_state.user is None:
       else:
         st.error("Erreur de communication avec le serveur.")
 
-# --- INTERFACE SELON LE RÔLE ---
+# --- INTERFACE SELON LE RÔLE (UTILISATEUR CONNECTÉ) ---
 else:
   user = st.session_state.user
+  if URL_LOGO:
+    st.sidebar.image(URL_LOGO, use_container_width=True)
   st.sidebar.write(f"👤 **{user.get('Nom')}**")
   st.sidebar.write(f"🔑 Rôle : *{user.get('Role')}*")
 
-  if st.sidebar.button("Se déconnecter"):
-    logout_user(str(user.get("Code")))
-    st.session_state.user = None
-    st.rerun()
-
   df_ext, _ = get_data()
 
-  # FORMATEUR
-  if str(user.get("Role")).strip().lower() == "formateur":
-    st.title("🧯 Formateur")
-     
-     # --- ENCART RÉCAPITULATIF FORMATEUR ---
-    total_pleins = len(df_ext[df_ext["Statut"] == "Plein"])
-    total_en_formation = len(df_ext[df_ext["Statut"] == "En formation"])
-    total_vides = len(df_ext[df_ext["Statut"] == "Vide"])
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Pleins", total_pleins)
-    col2.metric("En formation", total_en_formation)
-    col3.metric("Vides", total_vides)
-    st.markdown("---")
-    # -------------------------------------
-
-      # --- ENCART SPECKLETTES INTÉGRÉ ICI ---
-    st.markdown("### 💧 Gestion des Specklettes")
-    col_sp1, col_sp2 = st.columns(2)
-    
-    with col_sp1:
-        st.write("**Pris / Emportés**")
-        qte_pris = st.number_input("Quantité prise", min_value=1, max_value=50, value=1, key="qte_pris_sp")
-        if st.button("Valider prise specklettes"):
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-            update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
-            st.success(f"✅ {qte_pris} specklette(s) enregistrée(s) comme prises.")
-            
-    with col_sp2:
-        st.write("**Déposés / Restitués**")
-        qte_depose = st.number_input("Quantité déposée", min_value=1, max_value=50, value=1, key="qte_depose_sp")
-        if st.button("Valider dépôt specklettes"):
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-            update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
-            st.success(f"✅ {qte_depose} specklette(s) enregistrée(s) comme déposées.")
-            
-    st.markdown("---")
-    # ---------------------------------------
-      
-    id_scanne = qrcode_scanner(key="scanner_formateur")
-
-    if id_scanne:
-      st.info(f"🔍 QR Code détecté : **{id_scanne}**")
-      mask = (
-          df_ext["ID_Extincteur"].astype(str).str.strip().str.lower()
-          == str(id_scanne).strip().lower()
-      )
-
-      if mask.any():
-        statut_actuel = df_ext.loc[mask, "Statut"].values[0]
-        if statut_actuel == "Plein":
-          nouveau_statut = "En formation"
-        elif statut_actuel == "En formation":
-          nouveau_statut = "Vide"
-        else:
-          nouveau_statut = None
-
-        if nouveau_statut:
-          date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-          update_sheet(
-              id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
-          )
-          st.success(
-              f"✅ Extincteur **{id_scanne}** mis à jour : **{nouveau_statut}**"
-          )
-          if nouveau_statut == "Vide":
-            st.warning("📩 Un e-mail d'alerte a été envoyé au gestionnaire.")
-        else:
-          st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
-      else:
-        st.error(f"❌ L'ID '{id_scanne}' est introuvable.")
-
-  # PRESTATAIRE
-  elif str(user.get("Role")).strip().lower() == "prestataire":
-    st.image("https://thumbs.dreamstime.com/b/extincteur-avec-rendu-d-camion-isol%C3%A9-sur-fond-blanc-272191597.jpg")
-    st.title("🚚 Prestataire")
-      
-      # --- ENCART RÉCAPITULATIF PRESTATAIRE ---
-    nb_vides = len(df_ext[df_ext["Statut"] == "Vide"])
-    nb_rechargement = len(df_ext[df_ext["Statut"] == "En rechargement"])
-    nb_pleins = len(df_ext[df_ext["Statut"] == "Plein"])
-
-    st.markdown("### 📊 État du parc")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("À récupérer (Vides)", nb_vides)
-    col2.metric("En rechargement", nb_rechargement)
-    col3.metric("Disponibles (Pleins)", nb_pleins)
-    st.markdown("---")
-    # ---------------------------------------
-      # --- ENCART SPECKLETTES INTÉGRÉ ICI ---
-    st.markdown("### 💧 Gestion des Specklettes")
-    col_sp1, col_sp2 = st.columns(2)
-    
-    with col_sp1:
-        st.write("**Pris / Emportés**")
-        qte_pris = st.number_input("Quantité prise", min_value=1, max_value=50, value=1, key="qte_pris_sp")
-        if st.button("Valider prise specklettes"):
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-            update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
-            st.success(f"✅ {qte_pris} specklette(s) enregistrée(s) comme prises.")
-            
-    with col_sp2:
-        st.write("**Déposés / Restitués**")
-        qte_depose = st.number_input("Quantité déposée", min_value=1, max_value=50, value=1, key="qte_depose_sp")
-        if st.button("Valider dépôt specklettes"):
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-            update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
-            st.success(f"✅ {qte_depose} specklette(s) enregistrée(s) comme déposées.")
-            
-    st.markdown("---")
-    # ---------------------------------------
-    choix_action = st.radio(
-        "Action :",
-        (
-            "Récupérer des extincteurs (Lot)",
-            "Déposer des extincteurs Plein (Scan individuel)",
-        ),
+  # ==========================================
+  # ÉTAPE 1 : GESTION DES SPECKLETTES (COMMUN)
+  # ==========================================
+  if st.session_state.etape_utilisateur == "specklettes":
+    st.title("💧 Gestion des Specklettes")
+    st.write(
+        "Veuillez renseigner vos mouvements de specklettes avant de continuer."
     )
 
-    if "Récupérer" in choix_action:
-      vides = df_ext[df_ext["Statut"] == "Vide"]
-      nb_vides = len(vides)
-      st.info(f"📦 Extincteurs actuellement marqués 'Vide' : **{nb_vides}**")
+    col_sp1, col_sp2 = st.columns(2)
 
-      quantite_a_prendre = st.number_input(
-          "Combien d'extincteurs le prestataire emporte-t-il ?",
-          min_value=1,
-          max_value=100,
-          value=max(1, nb_vides),
+    with col_sp1:
+      st.write("**Pris / Emportés**")
+      qte_pris = st.number_input(
+          "Quantité prise", min_value=0, max_value=50, value=0, key="qte_pris_sp"
       )
 
-      if st.button("Valider le départ du lot"):
-        date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-        res_batch = update_batch(
-            quantite_a_prendre, user.get("Nom"), date_du_jour
-        )
-        if res_batch and res_batch.get("status") == "success":
-          st.success(
-              f"🚀 Départ validé pour {res_batch.get('count')} extincteur(s)."
-              " Un e-mail de suivi a été envoyé au gestionnaire."
-          )
-          st.rerun()
-
-    else:
-      st.write(
-          "Scannez individuellement chaque extincteur de retour pour le"
-          " basculer en **Plein**."
+    with col_sp2:
+      st.write("**Déposés / Restitués**")
+      qte_depose = st.number_input(
+          "Quantité déposée",
+          min_value=0,
+          max_value=50,
+          value=0,
+          key="qte_depose_sp",
       )
-      id_scanne_retour = qrcode_scanner(key="scanner_prestataire_retour")
 
-      if id_scanne_retour:
-        st.info(f"🔍 QR Code détecté : **{id_scanne_retour}**")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("Valider et passer à l'étape suivante ➔"):
+      date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+
+      if qte_pris > 0:
+        update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
+        st.session_state.session_actions["specklettes_prises"] += qte_pris
+
+      if qte_depose > 0:
+        update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
+        st.session_state.session_actions["specklettes_deposees"] += qte_depose
+
+      # Passage à l'étape de travail (scan ou gestion lots)
+      st.session_state.etape_utilisateur = "travail"
+      st.rerun()
+
+  # ==========================================
+  # ÉTAPE 2 : TRAVAIL (FORMATEUR OU PRESTATAIRE) + DÉCONNEXION FINALE
+  # ==========================================
+  elif st.session_state.etape_utilisateur == "travail":
+
+    # --- FORMATEUR ---
+    if str(user.get("Role")).strip().lower() == "formateur":
+      st.title("🧯 Formateur - Scan des Extincteurs")
+
+      id_scanne = qrcode_scanner(key="scanner_formateur")
+
+      if id_scanne:
+        st.info(f"🔍 QR Code détecté : **{id_scanne}**")
         mask = (
             df_ext["ID_Extincteur"].astype(str).str.strip().str.lower()
-            == str(id_scanne_retour).strip().lower()
+            == str(id_scanne).strip().lower()
         )
 
         if mask.any():
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
-          if statut_actuel in ["En rechargement", "Vide"]:
-            date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+          if statut_actuel == "Plein":
+            nouveau_statut = "En formation"
+          elif statut_actuel == "En formation":
+            nouveau_statut = "Vide"
+          else:
+            nouveau_statut = None
+
+          if nouveau_statut:
+            date_du_jour = datetime.now(fuseau_paris).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
             update_sheet(
-                id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
+                id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
             )
             st.success(
-                f"✅ Extincteur **{id_scanne_retour}** de retour et basculé en"
-                " **Plein** !"
+                f"✅ Extincteur **{id_scanne}** mis à jour : **{nouveau_statut}**"
             )
+            if nouveau_statut == "Vide":
+              st.session_state.session_actions["extincteurs_vides"].append(
+                  id_scanne
+              )
+              st.info(
+                  "ℹ️ Extincteur vide enregistré pour le bilan de fin de session."
+              )
           else:
-            st.warning(f"⚠️ Cet extincteur est déjà au statut : {statut_actuel}")
+            st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
         else:
-          st.error("❌ ID introuvable.")
+          st.error(f"❌ L'ID '{id_scanne}' est introuvable.")
 
-# --- DÉCONNEXION EN FIN DE PAGE (ISOLÉE PROPREMENT) ---
-st.markdown("---")
-st.markdown(
-    '<div class="footer-deconnexion">⚠️ Une fois fini de scanner les'
-    " extincteurs, pensez à vous déconnecter !</div>",
-    unsafe_allow_html=True,
-)
+    # --- PRESTATAIRE ---
+    elif str(user.get("Role")).strip().lower() == "prestataire":
+      st.image(
+          "https://thumbs.dreamstime.com/b/extincteur-avec-rendu-d-camion-isol%C3%A9-sur-fond-blanc-272191597.jpg"
+      )
+      st.title("🚚 Prestataire")
 
-# Utilisation d'un conteneur dédié ou d'une vérification directe
-if st.button("🔒 Se déconnecter maintenant", key="btn_deconnexion_bas"):
-  logout_user(str(user.get("Code")))
-  st.session_state.user = None
-  st.rerun()
+      choix_action = st.radio(
+          "Action :",
+          (
+              "Récupérer des extincteurs (Lot)",
+              "Déposer des extincteurs Plein (Scan individuel)",
+          ),
+      )
+
+      if "Récupérer" in choix_action:
+        vides = df_ext[df_ext["Statut"] == "Vide"]
+        nb_vides = len(vides)
+        st.info(f"📦 Extincteurs actuellement marqués 'Vide' : **{nb_vides}**")
+
+        quantite_a_prendre = st.number_input(
+            "Combien d'extincteurs le prestataire emporte-t-il ?",
+            min_value=1,
+            max_value=100,
+            value=max(1, nb_vides),
+        )
+
+        if st.button("Valider le départ du lot"):
+          date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
+          res_batch = update_batch(
+              quantite_a_prendre, user.get("Nom"), date_du_jour
+          )
+          if res_batch and res_batch.get("status") == "success":
+            nb_pris = res_batch.get("count")
+            st.session_state.session_actions["extincteurs_recharges"].append(
+                f"{nb_pris} extincteur(s)"
+            )
+            st.success(
+                f"🚀 Départ validé pour {nb_pris} extincteur(s). Enregistré"
+                " pour le bilan."
+            )
+            st.rerun()
+
+      else:
+        st.write(
+            "Scannez individuellement chaque extincteur de retour pour le"
+            " basculer en **Plein**."
+        )
+        id_scanne_retour = qrcode_scanner(key="scanner_prestataire_retour")
+
+        if id_scanne_retour:
+          st.info(f"🔍 QR Code détecté : **{id_scanne_retour}**")
+          mask = (
+              df_ext["ID_Extincteur"].astype(str).str.strip().str.lower()
+              == str(id_scanne_retour).strip().lower()
+          )
+
+          if mask.any():
+            statut_actuel = df_ext.loc[mask, "Statut"].values[0]
+            if statut_actuel in ["En rechargement", "Vide"]:
+              date_du_jour = datetime.now(fuseau_paris).strftime(
+                  "%Y-%m-%d %H:%M:%S"
+              )
+              update_sheet(
+                  id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
+              )
+              st.success(
+                  f"✅ Extincteur **{id_scanne_retour}** de retour et basculé en"
+                  " **Plein** !"
+              )
+            else:
+              st.warning(
+                  f"⚠️ Cet extincteur est déjà au statut : {statut_actuel}"
+              )
+          else:
+            st.error("❌ ID introuvable.")
+
+    # --- DÉCONNEXION FINALE EN BAS DE LA PAGE DE TRAVAIL ---
+    st.markdown("---")
+    st.markdown(
+        '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour envoyer le bilan et vous déconnecter !</div>',
+        unsafe_allow_html=True,
+    )
+
+    if st.button("🔒 Se déconnecter et envoyer le bilan", key="btn_deconnexion_bas"):
+      actions_bilan = st.session_state.get("session_actions", None)
+      logout_user(str(user.get("Code")), actions_bilan)
+      st.session_state.user = None
+      st.session_state.etape_utilisateur = (
+          "specklettes"  # Remise à zéro pour la prochaine connexion
+      )
+      st.rerun()
