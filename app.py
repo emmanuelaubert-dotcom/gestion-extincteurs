@@ -333,7 +333,7 @@ else:
               st.session_state.session_actions["extincteurs_vides"].append(
                   f"{nom_extincteur} ({id_scanne})"
               )
-              st.info("ℹ️ Extincteur vide enregistré pour le bilan de fin de session.")
+              
           else:
             st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
         else:
