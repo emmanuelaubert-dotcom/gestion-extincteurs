@@ -415,7 +415,7 @@ else:
               update_sheet(
                   str(id_scanne_retour), "Plein", user.get("Nom"), date_du_jour
               )
-                st.session_state.session_actions["extincteurs_pleins_prestataire"] += quantite_saisie
+              st.session_state.session_actions["extincteurs_pleins_prestataire"] += quantite_saisie
               st.success(
                   f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
                   " **Plein** !"
