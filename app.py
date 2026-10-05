@@ -219,7 +219,7 @@ if st.session_state.user is None:
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
-              "⚠️ Ce compte est déjà connecté sur un autre appareil ou une autre"
+              "⚠️️ Ce compte est déjà connecté sur un autre appareil ou une autre"
               " fenêtre !"
           )
         else:
@@ -293,14 +293,25 @@ else:
       id_scanne = qrcode_scanner(key="scanner_formateur")
 
       if id_scanne:
-        st.info(f"🔍 QR Code détecté : **{id_scanne}**")
+        # 1. On cherche la ligne correspondant au QR code scanné dans ID_QRCode
         mask = (
-            df_ext["ID_Extincteur"].astype(str).str.strip().str.lower()
+            df_ext["ID_QRCode"].astype(str).str.strip().str.lower()
             == str(id_scanne).strip().lower()
         )
 
         if mask.any():
+          # 2. On récupère la valeur du nom de l'extincteur depuis ID_Extincteur
+          nom_extincteur = df_ext.loc[mask, "ID_Extincteur"].values[0]
+
+          # 3. On affiche clairement le nom à l'utilisateur
+          st.info(
+              f"🔍 Extincteur reconnu : **{nom_extincteur}** (Code:"
+              f" {id_scanne})"
+          )
+
+          # 4. Logique de statut et mise à jour
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
+
           if statut_actuel == "Plein":
             nouveau_statut = "En formation"
           elif statut_actuel == "En formation":
@@ -313,22 +324,20 @@ else:
                 "%Y-%m-%d %H:%M:%S"
             )
             update_sheet(
-                id_scanne, nouveau_statut, user.get("Nom"), date_du_jour
+                str(id_scanne), nouveau_statut, user.get("Nom"), date_du_jour
             )
             st.success(
-                f"✅ Extincteur **{id_scanne}** mis à jour : **{nouveau_statut}**"
+                f"✅ Extincteur **{nom_extincteur}** mis à jour : **{nouveau_statut}**"
             )
             if nouveau_statut == "Vide":
               st.session_state.session_actions["extincteurs_vides"].append(
-                  id_scanne
+                  f"{nom_extincteur} ({id_scanne})"
               )
-              st.info(
-                  "ℹ️ Extincteur vide enregistré pour le bilan de fin de session."
-              )
+              st.info("ℹ️ Extincteur vide enregistré pour le bilan de fin de session.")
           else:
             st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
         else:
-          st.error(f"❌ L'ID '{id_scanne}' est introuvable.")
+          st.error(f"❌ Le code scanné '{id_scanne}' est introuvable.")
 
     # --- PRESTATAIRE ---
     elif str(user.get("Role")).strip().lower() == "prestataire":
@@ -381,23 +390,30 @@ else:
         id_scanne_retour = qrcode_scanner(key="scanner_prestataire_retour")
 
         if id_scanne_retour:
-          st.info(f"🔍 QR Code détecté : **{id_scanne_retour}**")
+          # Recherche par ID_QRCode pour le prestataire en retour également
           mask = (
-              df_ext["ID_Extincteur"].astype(str).str.strip().str.lower()
+              df_ext["ID_QRCode"].astype(str).str.strip().str.lower()
               == str(id_scanne_retour).strip().lower()
           )
 
           if mask.any():
+            nom_extincteur = df_ext.loc[mask, "ID_Extincteur"].values[0]
+            st.info(
+                f"🔍 Extincteur reconnu : **{nom_extincteur}** (Code:"
+                f" {id_scanne_retour})"
+            )
+
             statut_actuel = df_ext.loc[mask, "Statut"].values[0]
+
             if statut_actuel in ["En rechargement", "Vide"]:
               date_du_jour = datetime.now(fuseau_paris).strftime(
                   "%Y-%m-%d %H:%M:%S"
               )
               update_sheet(
-                  id_scanne_retour, "Plein", user.get("Nom"), date_du_jour
+                  str(id_scanne_retour), "Plein", user.get("Nom"), date_du_jour
               )
               st.success(
-                  f"✅ Extincteur **{id_scanne_retour}** de retour et basculé en"
+                  f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
                   " **Plein** !"
               )
             else:
@@ -405,7 +421,7 @@ else:
                   f"⚠️ Cet extincteur est déjà au statut : {statut_actuel}"
               )
           else:
-            st.error("❌ ID introuvable.")
+            st.error("❌ Code QR introuvable.")
 
     # --- DÉCONNEXION FINALE EN BAS DE LA PAGE DE TRAVAIL ---
     st.markdown("---")
