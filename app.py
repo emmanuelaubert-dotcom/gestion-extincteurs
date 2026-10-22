@@ -263,13 +263,13 @@ else:
     col_sp1, col_sp2 = st.columns(2)
 
     with col_sp1:
-      st.write("**Pris / Emportés**")
+      st.write("**Prises / Emportées**")
       qte_pris = st.number_input(
           "Quantité prise", min_value=0, max_value=50, value=0, key="qte_pris_sp"
       )
 
     with col_sp2:
-      st.write("**Déposés / Restitués**")
+      st.write("**Déposées / Restituées**")
       qte_depose = st.number_input(
           "Quantité déposée",
           min_value=0,
