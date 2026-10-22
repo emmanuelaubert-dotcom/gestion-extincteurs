@@ -108,7 +108,7 @@ def logout_user(code_utilisateur, actions_bilan):
         "En rechargement": actions_bilan.get("En rechargement", 0),
         "Pleins": actions_bilan.get("Pleins", 0),
         "sparklets_prises": actions_bilan.get("sparklets_prises", 0),
-        "sparklets_deposées": actions_bilan.get("sparklets_deposées", 0),
+        "sparklets_deposees": actions_bilan.get("sparklets_deposees", 0),
     }
 
     stats_json = json.dumps(stats_a_envoyer)
@@ -180,7 +180,7 @@ def update_sparklets(qte_pris, qte_depose, utilisateur, date):
     params = {
         "action": "updateSparklets",
         "qte_pris": qte_pris,
-        "qte_deposé": qte_depose,
+        "qte_depose": qte_depose,
         "utilisateur": utilisateur,
         "date": date,
     }
@@ -205,7 +205,7 @@ if "session_actions" not in st.session_state:
       "extincteurs_vides": [],
       "extincteurs_recharges": [],
       "sparklets_prises": 0,
-      "sparklets_deposées": 0,
+      "sparklets_deposees": 0,
   }
 if "etape_utilisateur" not in st.session_state:
   st.session_state.etape_utilisateur = "sparklets"
