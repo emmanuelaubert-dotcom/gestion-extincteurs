@@ -199,22 +199,6 @@ if "session_actions" not in st.session_state:
 if "etape_utilisateur" not in st.session_state:
   st.session_state.etape_utilisateur = "specklettes"
 
-# --- VÉRIFICATION DE L'INACTIVITÉ (5 minutes) ---
-INACTIVITY_LIMIT = timedelta(minutes=5)
-if st.session_state.user is not None:
-  if datetime.now(fuseau_paris) - st.session_state.last_activity > INACTIVITY_LIMIT:
-    code_actuel = str(st.session_state.user.get("Code"))
-    actions_bilan = st.session_state.get("session_actions", None)
-    logout_user(code_actuel, actions_bilan)
-    st.session_state.user = None
-    st.warning(
-        "⏳ Session expirée suite à 5 minutes d'inactivité. Veuillez vous"
-        " reconnecter."
-    )
-    st.rerun()
-  else:
-    st.session_state.last_activity = datetime.now(fuseau_paris)
-
 
 # --- AUTHENTIFICATION ---
 if st.session_state.user is None:
