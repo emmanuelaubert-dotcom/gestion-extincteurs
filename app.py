@@ -6,14 +6,12 @@ import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 from zoneinfo import ZoneInfo
 
-# 1. Définir le fuseau horaire de Paris
+# Fuseau horaire
 fuseau_paris = ZoneInfo("Europe/Paris")
-
-# 2. Récupérer l'heure actuelle à Paris
 maintenant_paris = datetime.now(fuseau_paris)
 heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
 
-# Masquer la barre d'outils et le badge GitHub
+# Masquer la barre d'outils GitHub
 hide_toolbar = """
     <style>
     div[data-testid="stToolbar"] {
@@ -23,12 +21,10 @@ hide_toolbar = """
 """
 st.markdown(hide_toolbar, unsafe_allow_html=True)
 
-# LIENS DE DESIGN
+# Configurations
 URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
-
-# URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfh2erJV6P6l9IuLRwRVORvyx14n2dgUsrTVxyMOWlktKujgrlAS4aH-ySmAxUqUA/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySrvyb4zp4jbiduCk-q0e28RchLxV_chKJkceSUgJ3cT-LXuRYBrT9I6i0A7W6bu8/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
@@ -36,7 +32,7 @@ st.set_page_config(
     layout="centered",
 )
 
-# STYLE GLOBAL
+# Style CSS
 st.markdown(
     """
     <style>
@@ -174,13 +170,14 @@ def update_batch(quantite, utilisateur, date):
     return None
 
 
-def update_sparklets(qte_pris, qte_depose, utilisateur, date):
+def update_sparklets(qte_pris, qte_depose, utilisateur, role, date):
   try:
     params = {
         "action": "updateSparklets",
         "qte_pris": qte_pris,
         "qte_depose": qte_depose,
         "utilisateur": utilisateur,
+        "role": role,
         "date": date,
     }
     response = requests.post(APPS_SCRIPT_URL, data=params)
@@ -190,7 +187,7 @@ def update_sparklets(qte_pris, qte_depose, utilisateur, date):
     return None
 
 
-# --- GESTION DES ÉTATS GLOBAUX ---
+# --- ÉTATS GLOBAUX ---
 if "user" not in st.session_state:
   st.session_state.user = None
 if "last_activity" not in st.session_state:
@@ -255,7 +252,7 @@ else:
   df_ext, _ = get_data()
 
   # ==========================================
-  # ÉTAPE 1 : GESTION DES SPARKLETS (PAGE UNIQUE)
+  # ÉTAPE 1 : SPARKLETS (PAGE UNIQUE)
   # ==========================================
   if st.session_state.etape_utilisateur == "sparklets":
     st.title("💧 Gestion des Sparklets")
@@ -266,13 +263,13 @@ else:
     col_sp1, col_sp2 = st.columns(2)
 
     with col_sp1:
-      st.write("**Prises / Emportées**")
+      st.write("**Pris / Emportés**")
       qte_pris = st.number_input(
           "Quantité prise", min_value=0, max_value=50, value=0, key="qte_pris_sp"
       )
 
     with col_sp2:
-      st.write("**Déposées / Restituées**")
+      st.write("**Déposés / Restitués**")
       qte_depose = st.number_input(
           "Quantité déposée",
           min_value=0,
@@ -287,7 +284,13 @@ else:
       date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
 
       if qte_pris > 0 or qte_depose > 0:
-        update_sparklets(qte_pris, qte_depose, user.get("Nom"), date_du_jour)
+        update_sparklets(
+            qte_pris,
+            qte_depose,
+            user.get("Nom"),
+            user.get("Role"),
+            date_du_jour,
+        )
         st.session_state.session_actions["sparklets_prises"] += qte_pris
         st.session_state.session_actions["sparklets_deposees"] += qte_depose
 
@@ -295,7 +298,7 @@ else:
       st.rerun()
 
   # ==========================================
-  # ÉTAPE 2 : TRAVAIL (FORMATEUR OU PRESTATAIRE)
+  # ÉTAPE 2 : TRAVAIL (FORMATEUR / PRESTATAIRE)
   # ==========================================
   elif st.session_state.etape_utilisateur == "travail":
 
@@ -426,9 +429,7 @@ else:
                     f" '{statut_actuel}') de retour et basculé en **Plein** !"
                 )
             else:
-              st.warning(
-                  f"⚠️ Cet extincteur est déjà au statut : **Plein**"
-              )
+              st.warning(f"⚠️ Cet extincteur est déjà au statut : **Plein**")
           else:
             st.error("❌ Code QR introuvable.")
 
@@ -436,12 +437,12 @@ else:
     st.markdown("---")
     st.markdown(
         '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
-        " Vous déconnecter en toute sécurité !</div>",
+        " envoyer le bilan et vous déconnecter en toute sécurité !</div>",
         unsafe_allow_html=True,
     )
 
     if st.button(
-        "🔒 Se déconnecter ", key="btn_deconnexion_bas"
+        "🔒 Se déconnecter et envoyer le bilan", key="btn_deconnexion_bas"
     ):
       code_utilisateur = str(user.get("Code"))
       actions_bilan = st.session_state.get("session_actions", None)
