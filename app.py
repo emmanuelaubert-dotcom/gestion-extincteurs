@@ -436,12 +436,12 @@ else:
     st.markdown("---")
     st.markdown(
         '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
-        " envoyer le bilan et vous déconnecter en toute sécurité !</div>",
+        " Vous déconnecter en toute sécurité !</div>",
         unsafe_allow_html=True,
     )
 
     if st.button(
-        "🔒 Se déconnecter et envoyer le bilan", key="btn_deconnexion_bas"
+        "🔒 Se déconnecter ", key="btn_deconnexion_bas"
     ):
       code_utilisateur = str(user.get("Code"))
       actions_bilan = st.session_state.get("session_actions", None)
