@@ -24,7 +24,7 @@ st.markdown(hide_toolbar, unsafe_allow_html=True)
 # Configurations
 URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySrvyb4zp4jbiduCk-q0e28RchLxV_chKJkceSUgJ3cT-LXuRYBrT9I6i0A7W6bu8/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxImFUIFP3qP4gGCERNXD74kWrQyzhcS5RXtpxexKUPki-SrgZYGM27YoRNis0YNAs/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
