@@ -30,7 +30,7 @@ URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 
 # URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgWcVzo1bKrfsYFQxMdpF6JWcJQcTwp31C1aShr6NQ5IhlLZ5LZ8sPVXH2sD5NMo4/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzbjC9dU6VYHKgW7HDGxxGND3ZTJlrOHZyd27LzdC7KFEz_ToxL0vI4m8cNt4Plbw/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
