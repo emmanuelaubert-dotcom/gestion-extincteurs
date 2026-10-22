@@ -30,7 +30,7 @@ URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 
 # URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0nTByKKTspVqMdF8ZwWkL4jmuzjGClGPknTS4iq1T5aueC56O_ZGCyZd-LIxzHCg/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9a29224kcw5yixjRKqDrd0dRqcpi6r-vMk6UkZ7aNj6Y_1tsVpKfLtGcivKDPqO8/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
@@ -108,8 +108,8 @@ def logout_user(code_utilisateur, actions_bilan):
         "Vide": actions_bilan.get("Vide", 0),
         "En rechargement": actions_bilan.get("En rechargement", 0),
         "Pleins": actions_bilan.get("Pleins", 0),
-        "specklettes_prises": actions_bilan.get("specklettes_prises", 0),
-        "specklettes_deposees": actions_bilan.get("specklettes_deposees", 0),
+        "Sparklets_prises": actions_bilan.get("Sparklets_prises", 0),
+        "Sparklets_deposees": actions_bilan.get("Sparklets_deposees", 0),
     }
 
     stats_json = json.dumps(stats_a_envoyer)
@@ -176,10 +176,10 @@ def update_batch(quantite, utilisateur, date):
     return None
 
 
-def update_specklettes(action_type, quantite, utilisateur, date):
+def update_Sparklets(action_type, quantite, utilisateur, date):
   try:
     params = {
-        "action": "updateSpecklettes",
+        "action": "updateSparklets",
         "type_action": action_type,
         "quantite": quantite,
         "utilisateur": utilisateur,
@@ -205,11 +205,11 @@ if "session_actions" not in st.session_state:
       "Pleins": 0,
       "extincteurs_vides": [],
       "extincteurs_recharges": [],
-      "specklettes_prises": 0,
-      "specklettes_deposees": 0,
+      "Sparklets_prises": 0,
+      "Sparklets_deposees": 0,
   }
 if "etape_utilisateur" not in st.session_state:
-  st.session_state.etape_utilisateur = "specklettes"
+  st.session_state.etape_utilisateur = "Sparklets"
 
 
 # --- AUTHENTIFICATION ---
@@ -236,10 +236,10 @@ if st.session_state.user is None:
               "Pleins": 0,
               "extincteurs_vides": [],
               "extincteurs_recharges": [],
-              "specklettes_prises": 0,
-              "specklettes_deposees": 0,
+              "Sparklets_prises": 0,
+              "Sparklets_deposees": 0,
           }
-          st.session_state.etape_utilisateur = "specklettes"
+          st.session_state.etape_utilisateur = "Sparklets"
           st.rerun()
         elif res.get("status") == "already_connected":
           st.error(
@@ -262,12 +262,12 @@ else:
   df_ext, _ = get_data()
 
   # ==========================================
-  # ÉTAPE 1 : GESTION DES SPECKLETTES
+  # ÉTAPE 1 : GESTION DES Sparklets
   # ==========================================
-  if st.session_state.etape_utilisateur == "specklettes":
-    st.title("💧 Gestion des Specklettes")
+  if st.session_state.etape_utilisateur == "Sparklets":
+    st.title("💧 Gestion des Sparklets")
     st.write(
-        "Veuillez renseigner vos mouvements de specklettes avant de continuer."
+        "Veuillez renseigner vos mouvements de Sparklets avant de continuer."
     )
 
     col_sp1, col_sp2 = st.columns(2)
@@ -295,11 +295,11 @@ else:
 
       if qte_pris > 0:
         update_specklettes("pris", qte_pris, user.get("Nom"), date_du_jour)
-        st.session_state.session_actions["specklettes_prises"] += qte_pris
+        st.session_state.session_actions["Sparklets_prises"] += qte_pris
 
       if qte_depose > 0:
-        update_specklettes("depose", qte_depose, user.get("Nom"), date_du_jour)
-        st.session_state.session_actions["specklettes_deposees"] += qte_depose
+        update_Sparklets("depose", qte_depose, user.get("Nom"), date_du_jour)
+        st.session_state.session_actions["Sparklets_deposees"] += qte_depose
 
       st.session_state.etape_utilisateur = "travail"
       st.rerun()
