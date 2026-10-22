@@ -11,8 +11,6 @@ fuseau_paris = ZoneInfo("Europe/Paris")
 
 # 2. Récupérer l'heure actuelle à Paris
 maintenant_paris = datetime.now(fuseau_paris)
-
-# 3. Formater l'heure pour l'affichage
 heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
 
 # Masquer la barre d'outils et le badge GitHub
@@ -25,12 +23,13 @@ hide_toolbar = """
 """
 st.markdown(hide_toolbar, unsafe_allow_html=True)
 
-# 1. LIENS DE DESIGN
+# LIENS DE DESIGN
 URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 
 # URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzbjC9dU6VYHKgW7HDGxxGND3ZTJlrOHZyd27LzdC7KFEz_ToxL0vI4m8cNt4Plbw/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfh2erJV6P6l9IuLRwRVORvyx14n2dgUsrTVxyMOWlktKujgrlAS4aH-ySmAxUqUA/exec
+"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
@@ -108,8 +107,8 @@ def logout_user(code_utilisateur, actions_bilan):
         "Vide": actions_bilan.get("Vide", 0),
         "En rechargement": actions_bilan.get("En rechargement", 0),
         "Pleins": actions_bilan.get("Pleins", 0),
-        "Sparklets_prises": actions_bilan.get("Sparklets_prises", 0),
-        "Sparklets_deposees": actions_bilan.get("Sparklets_deposees", 0),
+        "sparklets_prises": actions_bilan.get("sparklets_prises", 0),
+        "sparklets_deposees": actions_bilan.get("sparklets_deposees", 0),
     }
 
     stats_json = json.dumps(stats_a_envoyer)
@@ -176,19 +175,19 @@ def update_batch(quantite, utilisateur, date):
     return None
 
 
-def update_Sparklets(action_type, quantite, utilisateur, date):
+def update_sparklets(qte_pris, qte_depose, utilisateur, date):
   try:
     params = {
         "action": "updateSparklets",
-        "type_action": action_type,
-        "quantite": quantite,
+        "qte_pris": qte_pris,
+        "qte_depose": qte_depose,
         "utilisateur": utilisateur,
         "date": date,
     }
     response = requests.post(APPS_SCRIPT_URL, data=params)
     return response.json()
   except Exception as e:
-    st.error(f"Erreur lors de la mise à jour des specklettes : {e}")
+    st.error(f"Erreur lors de la mise à jour des sparklets : {e}")
     return None
 
 
@@ -205,11 +204,11 @@ if "session_actions" not in st.session_state:
       "Pleins": 0,
       "extincteurs_vides": [],
       "extincteurs_recharges": [],
-      "Sparklets_prises": 0,
-      "Sparklets_deposees": 0,
+      "sparklets_prises": 0,
+      "sparklets_deposees": 0,
   }
 if "etape_utilisateur" not in st.session_state:
-  st.session_state.etape_utilisateur = "Sparklets"
+  st.session_state.etape_utilisateur = "sparklets"
 
 
 # --- AUTHENTIFICATION ---
@@ -236,16 +235,11 @@ if st.session_state.user is None:
               "Pleins": 0,
               "extincteurs_vides": [],
               "extincteurs_recharges": [],
-              "Sparklets_prises": 0,
-              "Sparklets_deposees": 0,
+              "sparklets_prises": 0,
+              "sparklets_deposees": 0,
           }
-          st.session_state.etape_utilisateur = "Sparklets"
+          st.session_state.etape_utilisateur = "sparklets"
           st.rerun()
-        elif res.get("status") == "already_connected":
-          st.error(
-              "⚠ Ce compte est déjà connecté sur un autre appareil ou une autre"
-              " fenêtre !"
-          )
         else:
           st.error("Code d'accès incorrect.")
       else:
@@ -262,24 +256,24 @@ else:
   df_ext, _ = get_data()
 
   # ==========================================
-  # ÉTAPE 1 : GESTION DES Sparklets
+  # ÉTAPE 1 : GESTION DES SPARKLETS (PAGE UNIQUE)
   # ==========================================
-  if st.session_state.etape_utilisateur == "Sparklets":
+  if st.session_state.etape_utilisateur == "sparklets":
     st.title("💧 Gestion des Sparklets")
     st.write(
-        "Veuillez renseigner vos mouvements de Sparklets avant de continuer."
+        "Veuillez renseigner vos mouvements de sparklets avant de continuer."
     )
 
     col_sp1, col_sp2 = st.columns(2)
 
     with col_sp1:
-      st.write("**Prises / Emportées**")
+      st.write("**Pris / Emportés**")
       qte_pris = st.number_input(
           "Quantité prise", min_value=0, max_value=50, value=0, key="qte_pris_sp"
       )
 
     with col_sp2:
-      st.write("**Déposées / Restituées**")
+      st.write("**Déposés / Restitués**")
       qte_depose = st.number_input(
           "Quantité déposée",
           min_value=0,
@@ -293,13 +287,10 @@ else:
     if st.button("Valider et passer à l'étape suivante ➔"):
       date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
 
-      if qte_pris > 0:
-        update_Sparklets("pris", qte_pris, user.get("Nom"), date_du_jour)
-        st.session_state.session_actions["Sparklets_prises"] += qte_pris
-
-      if qte_depose > 0:
-        update_Sparklets("depose", qte_depose, user.get("Nom"), date_du_jour)
-        st.session_state.session_actions["Sparklets_deposees"] += qte_depose
+      if qte_pris > 0 or qte_depose > 0:
+        update_sparklets(qte_pris, qte_depose, user.get("Nom"), date_du_jour)
+        st.session_state.session_actions["sparklets_prises"] += qte_pris
+        st.session_state.session_actions["sparklets_deposees"] += qte_depose
 
       st.session_state.etape_utilisateur = "travail"
       st.rerun()
@@ -423,7 +414,6 @@ else:
 
             statut_actuel = df_ext.loc[mask, "Statut"].values[0]
 
-            # Peu importe le statut actuel, on passe en Plein s'il ne l'est pas déjà
             if statut_actuel != "Plein":
               date_du_jour = datetime.now(fuseau_paris).strftime(
                   "%Y-%m-%d %H:%M:%S"
