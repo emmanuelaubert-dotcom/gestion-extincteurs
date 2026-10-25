@@ -331,7 +331,7 @@ else:
   # ÉTAPE 2 : TRAVAIL
   elif st.session_state.etape_utilisateur == "travail":
     if str(user.get("Role")).strip().lower() == "formateur":
-      st.title("🧯 Formateur - Scan des Extincteurs")
+      st.title("🧯 Scan des Extincteurs")
       id_scanne = qrcode_scanner(key="scanner_formateur")
 
       if id_scanne:
