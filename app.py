@@ -139,9 +139,18 @@ def update_sparklets(qte_pris, qte_depose, utilisateur, role, date):
     return None
 
 
-# --- ÉTATS GLOBAUX ---
+# --- ÉTATS GLOBAUX & PERSISTANCE URL (F5) ---
 if "user" not in st.session_state:
   st.session_state.user = None
+
+# Restauration automatique en cas de rafraîchissement (F5)
+params = st.query_params
+if "active_code" in params and st.session_state.user is None:
+  code_en_cours = params["active_code"]
+  res = attempt_login(code_en_cours)
+  if res and res.get("status") == "success":
+    st.session_state.user = res.get("user")
+
 if "last_activity" not in st.session_state:
   st.session_state.last_activity = datetime.now(fuseau_paris)
 if "session_actions" not in st.session_state:
@@ -160,7 +169,7 @@ if "etape_utilisateur" not in st.session_state:
 
 
 # =========================================================================
-# INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION
+# INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION (Anti-bug dernier extincteur)
 # =========================================================================
 if st.session_state.get("declencher_deconnexion", False):
   if st.session_state.user:
@@ -171,6 +180,42 @@ if st.session_state.get("declencher_deconnexion", False):
   st.session_state.clear()
   st.query_params.clear()
   st.rerun()
+
+
+# Masquer la barre d'outils GitHub / Style CSS
+hide_toolbar = """
+    <style>
+    div[data-testid="stToolbar"] {
+        display: none !important;
+    }
+    .stApp {
+        background-image: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url("https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    html, body, [class*="css"] { font-size: 18px; }
+    .stButton>button { width: 100%; height: 3.5em; font-size: 20px; font-weight: bold; border-radius: 10px; }
+    h1 { font-size: 32px !important; }
+    h2 { font-size: 26px !important; }
+    h3 { font-size: 22px !important; }
+    .stTextInput input {
+        border: 2px solid black !important;
+        border-radius: 8px !important;
+    }
+    .footer-deconnexion {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: bold;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+    </style>
+"""
+st.markdown(hide_toolbar, unsafe_allow_html=True)
 
 
 # --- AUTHENTIFICATION ---
@@ -188,6 +233,10 @@ if st.session_state.user is None:
       res = attempt_login(code_saisi)
       if res and res.get("status") == "success":
         st.session_state.user = res.get("user")
+        
+        # On mémorise le code dans l'URL pour le F5
+        st.query_params["active_code"] = code_saisi
+        
         st.session_state.last_activity = datetime.now(fuseau_paris)
         st.session_state.session_actions = {
             "En formation": 0,
