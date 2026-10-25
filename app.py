@@ -11,109 +11,18 @@ URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/
 URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrTd_cnA9d7NZjjb9ijFMw5t0R_s2XmVqgRqjXY3M8Uzgah8Xy0cb2XXaK19Cfhs0/exec"
 
-
-
-# 1. Vérifier si un code est présent dans l'URL (suite à un F5)
-params = st.query_params
-if "active_code" in params and st.session_state.get("user") is None:
-  code_en_cours = params["active_code"]
-  # On va chercher le profil utilisateur rapidement
-  user_trouve = verifier_code_dans_base(code_en_cours)  # Votre fonction existante
-  if user_trouve:
-    st.session_state.user = user_trouve
-    # On replace l'étape où il était (ou par défaut sur son tableau de bord)
-    if "etape_actuelle" not in st.session_state:
-      st.session_state.etape_actuelle = "accueil_role"
-
-# 2. Dès qu'un utilisateur se connecte avec succès, on met à jour l'URL
-if st.session_state.get("user") is not None:
-  st.query_params["active_code"] = str(st.session_state.user.get("Code"))
-
-# 1. Configuration de la page
+# 1. Configuration de la page (unique)
 st.set_page_config(
-    page_title="Gestion Extincteurs & Sparklets", page_icon="🧯", layout="wide"
+    page_title="Gestion Extincteurs & Sparklets",
+    page_icon="🧯",
+    layout="wide",
 )
-
-# 2. Initialisation des variables de session de base
-if "user" not in st.session_state:
-  st.session_state.user = None
-if "session_actions" not in st.session_state:
-  st.session_state.session_actions = {}
-
-# =========================================================================
-# 3. INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION (À placer ICI, tout en haut)
-# =========================================================================
-if st.session_state.get("declencher_deconnexion", False):
-  if st.session_state.user:
-    code_user = st.session_state.user.get("Code")
-    actions_bilan = st.session_state.get("session_actions", {})
-
-    # Appel de votre fonction de déconnexion (envoi du mail via Apps Script)
-    logout_user_backend(code_user, actions_bilan)
-
-  # Nettoyage total de la session pour purger le dernier extincteur en mémoire
-  st.session_state.clear()
-  st.query_params.clear()  # Nettoie aussi l'URL si vous utilisez query_params
-  st.rerun()
 
 # Fuseau horaire
 fuseau_paris = ZoneInfo("Europe/Paris")
-maintenant_paris = datetime.now(fuseau_paris)
-heure_formatee = maintenant_paris.strftime("%d/%m/%Y à %H:%M:%S")
-
-# Masquer la barre d'outils GitHub
-hide_toolbar = """
-    <style>
-    div[data-testid="stToolbar"] {
-        display: none !important;
-    }
-    </style>
-"""
-st.markdown(hide_toolbar, unsafe_allow_html=True)
-
-st.set_page_config(
-    page_title="Gestion Extincteurs",
-    page_icon="https://img.icons8.com/stickers/1200/fire-extinguisher.jpg",
-    layout="centered",
-)
-
-# Style CSS
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-image: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url("https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-    }
-    html, body, [class*="css"] { font-size: 18px; }
-    .stButton>button { width: 100%; height: 3.5em; font-size: 20px; font-weight: bold; border-radius: 10px; }
-    h1 { font-size: 32px !important; }
-    h2 { font-size: 26px !important; }
-    h3 { font-size: 22px !important; }
-
-    .stTextInput input {
-        border: 2px solid black !important;
-        border-radius: 8px !important;
-    }
-    
-    .footer-deconnexion {
-        background-color: #f8d7da;
-        color: #721c24;
-        padding: 10px;
-        border-radius: 8px;
-        text-align: center;
-        font-weight: bold;
-        margin-top: 30px;
-        margin-bottom: 15px;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
 
 
+# --- FONCTIONS UTILITAIRES ---
 def get_data():
   try:
     response = requests.get(APPS_SCRIPT_URL + "?action=getData")
@@ -177,8 +86,7 @@ def update_sheet(id_ext, statut, utilisateur, date):
     if res_data.get("status") == "too_soon":
       mins = res_data.get("minutes", 60)
       st.warning(
-          f"⏳ Cet extincteur a déjà été modifié il y a moins d'une heure."
-          f" Veuillez patienter encore environ {mins} minute(s)."
+          f"⏳ Cet extincteur a déjà été modifié il y a moins d'une heure. Veuillez patienter encore environ {mins} minute(s)."
       )
       return False
 
@@ -190,7 +98,6 @@ def update_sheet(id_ext, statut, utilisateur, date):
           st.session_state.session_actions["Vide"] += 1
         elif statut == "Plein":
           st.session_state.session_actions["Pleins"] += 1
-
       return True
     else:
       st.error("Erreur lors de la mise à jour.")
@@ -252,6 +159,20 @@ if "etape_utilisateur" not in st.session_state:
   st.session_state.etape_utilisateur = "sparklets"
 
 
+# =========================================================================
+# INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION
+# =========================================================================
+if st.session_state.get("declencher_deconnexion", False):
+  if st.session_state.user:
+    code_user = st.session_state.user.get("Code")
+    actions_bilan = st.session_state.get("session_actions", {})
+    logout_user(code_user, actions_bilan)
+
+  st.session_state.clear()
+  st.query_params.clear()
+  st.rerun()
+
+
 # --- AUTHENTIFICATION ---
 if st.session_state.user is None:
   st.image(
@@ -265,26 +186,23 @@ if st.session_state.user is None:
       st.error("Veuillez saisir un code.")
     else:
       res = attempt_login(code_saisi)
-      if res:
-        if res.get("status") == "success":
-          st.session_state.user = res.get("user")
-          st.session_state.last_activity = datetime.now(fuseau_paris)
-          st.session_state.session_actions = {
-              "En formation": 0,
-              "Vide": 0,
-              "En rechargement": 0,
-              "Pleins": 0,
-              "extincteurs_vides": [],
-              "extincteurs_recharges": [],
-              "sparklets_prises": 0,
-              "sparklets_deposees": 0,
-          }
-          st.session_state.etape_utilisateur = "sparklets"
-          st.rerun()
-        else:
-          st.error("Code d'accès incorrect.")
+      if res and res.get("status") == "success":
+        st.session_state.user = res.get("user")
+        st.session_state.last_activity = datetime.now(fuseau_paris)
+        st.session_state.session_actions = {
+            "En formation": 0,
+            "Vide": 0,
+            "En rechargement": 0,
+            "Pleins": 0,
+            "extincteurs_vides": [],
+            "extincteurs_recharges": [],
+            "sparklets_prises": 0,
+            "sparklets_deposees": 0,
+        }
+        st.session_state.etape_utilisateur = "sparklets"
+        st.rerun()
       else:
-        st.error("Erreur de communication avec le serveur.")
+        st.error("Code d'accès incorrect ou erreur serveur.")
 
 # --- INTERFACE UTILISATEUR CONNECTÉ ---
 else:
@@ -296,9 +214,7 @@ else:
 
   df_ext, _ = get_data()
 
-  # ==========================================
-  # ÉTAPE 1 : SPARKLETS (PAGE UNIQUE)
-  # ==========================================
+  # ÉTAPE 1 : SPARKLETS
   if st.session_state.etape_utilisateur == "sparklets":
     st.title("💧 Gestion des Sparklets")
     st.write(
@@ -306,7 +222,6 @@ else:
     )
 
     col_sp1, col_sp2 = st.columns(2)
-
     with col_sp1:
       st.write("**Prises / Emportées**")
       qte_pris = st.number_input(
@@ -327,7 +242,6 @@ else:
 
     if st.button("Valider et passer à l'étape suivante ➔"):
       date_du_jour = datetime.now(fuseau_paris).strftime("%Y-%m-%d %H:%M:%S")
-
       if qte_pris > 0 or qte_depose > 0:
         update_sparklets(
             qte_pris,
@@ -342,15 +256,10 @@ else:
       st.session_state.etape_utilisateur = "travail"
       st.rerun()
 
-  # ==========================================
-  # ÉTAPE 2 : TRAVAIL (FORMATEUR / PRESTATAIRE)
-  # ==========================================
+  # ÉTAPE 2 : TRAVAIL
   elif st.session_state.etape_utilisateur == "travail":
-
-    # --- FORMATEUR ---
     if str(user.get("Role")).strip().lower() == "formateur":
       st.title("🧯 Formateur - Scan des Extincteurs")
-
       id_scanne = qrcode_scanner(key="scanner_formateur")
 
       if id_scanne:
@@ -358,14 +267,11 @@ else:
             df_ext["ID_QRCode"].astype(str).str.strip().str.lower()
             == str(id_scanne).strip().lower()
         )
-
         if mask.any():
           nom_extincteur = df_ext.loc[mask, "ID_Extincteur"].values[0]
           st.info(
-              f"🔍 Extincteur reconnu : **{nom_extincteur}** (Code:"
-              f" {id_scanne})"
+              f"🔍 Extincteur reconnu : **{nom_extincteur}** (Code: {id_scanne})"
           )
-
           statut_actuel = df_ext.loc[mask, "Statut"].values[0]
 
           if statut_actuel == "Plein":
@@ -396,13 +302,8 @@ else:
         else:
           st.error(f"❌ Le code scanné '{id_scanne}' est introuvable.")
 
-    # --- PRESTATAIRE ---
     elif str(user.get("Role")).strip().lower() == "prestataire":
-      st.image(
-          "https://thumbs.dreamstime.com/b/extincteur-avec-rendu-d-camion-isol%C3%A9-sur-fond-blanc-272191597.jpg"
-      )
       st.title("🚚 Prestataire")
-
       choix_action = st.radio(
           "Action :",
           (
@@ -415,7 +316,6 @@ else:
         vides = df_ext[df_ext["Statut"] == "Vide"]
         nb_vides = len(vides)
         st.info(f"📦 Extincteurs actuellement marqués 'Vide' : **{nb_vides}**")
-
         quantite_a_prendre = st.number_input(
             "Combien d'extincteurs le prestataire emporte-t-il ?",
             min_value=1,
@@ -434,15 +334,15 @@ else:
             nb_pris = res_batch.get("count")
             st.session_state.session_actions["En rechargement"] += nb_pris
             st.success(
-                f"🚀 Départ validé pour {nb_pris} extincteur(s). Enregistré"
-                " pour le bilan."
+                f"🚀 Départ validé pour {nb_pris} extincteur(s). Enregistré pour"
+                " le bilan."
             )
             st.rerun()
 
       else:
         st.write(
             "Scannez individuellement chaque extincteur de retour pour le"
-            " basculer en **Plein** (peu importe son statut précédent)."
+            " basculer en **Plein**."
         )
         id_scanne_retour = qrcode_scanner(key="scanner_prestataire_retour")
 
@@ -451,16 +351,9 @@ else:
               df_ext["ID_QRCode"].astype(str).str.strip().str.lower()
               == str(id_scanne_retour).strip().lower()
           )
-
           if mask.any():
             nom_extincteur = df_ext.loc[mask, "ID_Extincteur"].values[0]
-            st.info(
-                f"🔍 Extincteur reconnu : **{nom_extincteur}** (Code:"
-                f" {id_scanne_retour})"
-            )
-
             statut_actuel = df_ext.loc[mask, "Statut"].values[0]
-
             if statut_actuel != "Plein":
               date_du_jour = datetime.now(fuseau_paris).strftime(
                   "%Y-%m-%d %H:%M:%S"
@@ -470,23 +363,22 @@ else:
               )
               if success:
                 st.success(
-                    f"✅ Extincteur **{nom_extincteur}** (anciennement"
-                    f" '{statut_actuel}') de retour et basculé en **Plein** !"
+                    f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
+                    " **Plein** !"
                 )
             else:
-              st.warning(f"⚠️ Cet extincteur est déjà au statut : **Plein**")
+              st.warning("⚠️ Cet extincteur est déjà au statut : **Plein**")
           else:
             st.error("❌ Code QR introuvable.")
 
-  # --- DÉCONNEXION FINALE ---
-st.markdown("---")
-st.markdown(
-    '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
-    " vous déconnecter en toute sécurité !</div>",
-    unsafe_allow_html=True,
-)
+  # DÉCONNEXION FINALE
+  st.markdown("---")
+  st.markdown(
+      '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
+      " vous déconnecter en toute sécurité !</div>",
+      unsafe_allow_html=True,
+  )
 
-if st.button("🔒 Se déconnecter ", key="btn_deconnexion_bas"):
-  # On active juste le drapeau : le bloc tout en haut du script fera le reste proprement
-  st.session_state["declencher_deconnexion"] = True
-  st.rerun()
+  if st.button("🔒 Se déconnecter ", key="btn_deconnexion_bas"):
+    st.session_state["declencher_deconnexion"] = True
+    st.rerun()
