@@ -293,7 +293,7 @@ else:
   if st.session_state.etape_utilisateur == "sparklets":
     st.title("💧 Gestion des Sparklets")
     st.write(
-        "Veuillez renseigner vos mouvements de sparklets avant de continuer."
+        "Veuillez renseigner les quantités de sparklets."
     )
 
     col_sp1, col_sp2 = st.columns(2)
@@ -335,7 +335,7 @@ else:
   # ÉTAPE 2 : TRAVAIL
   elif st.session_state.etape_utilisateur == "travail":
     if str(user.get("Role")).strip().lower() == "formateur":
-      st.title("🧯 Formateur - Scan des Extincteurs")
+      st.title("🧯 Scan des Extincteurs")
       id_scanne = qrcode_scanner(key="scanner_formateur")
 
       if id_scanne:
