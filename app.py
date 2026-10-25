@@ -163,18 +163,15 @@ if "active_code" in params and st.session_state.get("user") is None:
   if res and res.get("status") == "success":
     st.session_state.user = res.get("user")
 
-    # Restauration du bilan des actions
     if "actions_json" in params:
       try:
         st.session_state.session_actions = json.loads(params["actions_json"])
       except:
         pass
 
-    # Restauration de l'étape
     if "etape" in params:
       st.session_state.etape_utilisateur = params["etape"]
 
-    # Restauration du choix prestataire
     if "choix_prestataire" in params:
       st.session_state["choix_action_prestataire"] = params["choix_prestataire"]
 
@@ -277,7 +274,6 @@ if st.session_state.user is None:
         }
         st.session_state.etape_utilisateur = "sparklets"
 
-        # Sauvegarde initiale dans l'URL
         sauvegarder_contexte_url()
         st.rerun()
       else:
@@ -333,7 +329,7 @@ else:
         st.session_state.session_actions["sparklets_deposees"] += qte_depose
 
       st.session_state.etape_utilisateur = "travail"
-      sauvegarder_contexte_url()  # Sauvegarde l'étape et les actions
+      sauvegarder_contexte_url()
       st.rerun()
 
   # ÉTAPE 2 : TRAVAIL
@@ -378,7 +374,6 @@ else:
                     f"{nom_extincteur} ({id_scanne})"
                 )
 
-              # Sauvegarde dans l'URL pour le F5 du formateur
               sauvegarder_contexte_url()
           else:
             st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
@@ -388,11 +383,10 @@ else:
     elif str(user.get("Role")).strip().lower() == "prestataire":
       st.title("🚚 Prestataire")
 
-      # Gestion de l'index par défaut selon la session mémorisée
       index_radio = 0
       if (
           "choix_action_prestataire" in st.session_state
-          and "Déposer" in st.session_state["choix_action_prestataire"]
+          and "Déposer" in str(st.session_state["choix_action_prestataire"])
       ):
         index_radio = 1
 
@@ -406,10 +400,9 @@ else:
           key="choix_action_prestataire",
       )
 
-      # Sauvegarde immédiate du choix dans l'URL
       sauvegarder_contexte_url()
 
-      if "Récupérer" in choix_action:
+      if "Récupérer" in str(choix_action):
         vides = df_ext[df_ext["Statut"] == "Vide"]
         nb_vides = len(vides)
         st.info(f"📦 Extincteurs actuellement marqués 'Vide' : **{nb_vides}**")
@@ -434,7 +427,7 @@ else:
                 f"🚀 Départ validé pour {nb_pris} extincteur(s). Enregistré pour"
                 " le bilan."
             )
-            sauvegarder_contexte_url()  # Sauvegarde le lot validé
+            sauvegarder_contexte_url()
             st.rerun()
 
       else:
@@ -451,4 +444,35 @@ else:
           )
           if mask.any():
             nom_extincteur = df_ext.loc[mask, "ID_Extincteur"].values[0]
-            statut_actuel = df_ext
+            statut_actuel = df_ext.loc[mask, "Statut"].values[0]
+            if statut_actuel != "Plein":
+              date_du_jour = datetime.now(fuseau_paris).strftime(
+                  "%Y-%m-%d %H:%M:%S"
+              )
+              success = update_sheet(
+                  str(id_scanne_retour), "Plein", user.get("Nom"), date_du_jour
+              )
+              if success:
+                st.success(
+                    f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
+                    " **Plein** !"
+                )
+                sauvegarder_contexte_url()
+            else:
+              st.warning("⚠️ Cet extincteur est déjà au statut : **Plein**")
+          else:
+            st.error("❌ Code QR introuvable.")
+
+  # =========================================================================
+  # DÉCONNEXION FINALE (Sortie des blocs de rôles : visible pour TOUT LE MONDE)
+  # =========================================================================
+  st.markdown("---")
+  st.markdown(
+      '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
+      " vous déconnecter en toute sécurité !</div>",
+      unsafe_allow_html=True,
+  )
+
+  if st.button("🔒 Se déconnecter ", key="btn_deconnexion_bas"):
+    st.session_state["declencher_deconnexion"] = True
+    st.rerun()
