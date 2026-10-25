@@ -139,7 +139,7 @@ def update_sparklets(qte_pris, qte_depose, utilisateur, role, date):
     return None
 
 
-# Fonction globale pour sauvegarder tout le contexte dans l'URL (Formateur & Prestataire)
+# Fonction globale pour sauvegarder tout le contexte dans l'URL (F5 safe)
 def sauvegarder_contexte_url():
   if st.session_state.get("user"):
     st.query_params["active_code"] = str(st.session_state.user.get("Code"))
@@ -197,7 +197,31 @@ if "etape_utilisateur" not in st.session_state:
 
 
 # =========================================================================
-# INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION (Anti-bug dernier extincteur)
+# VÉRIFICATION DE L'INACTIVITÉ (1 HEURE = 3600 SECONDES) + ENVOI DU RAPPORT
+# =========================================================================
+if st.session_state.user is not None:
+  if "last_activity" in st.session_state:
+    inactivite = (
+        datetime.now(fuseau_paris) - st.session_state.last_activity
+    ).total_seconds()
+    if inactivite > 3600:
+      code_user = st.session_state.user.get("Code")
+      actions_bilan = st.session_state.get("session_actions", {})
+
+      # Envoi automatique du rapport de fin de session
+      logout_user(code_user, actions_bilan)
+
+      st.session_state.clear()
+      st.query_params.clear()
+      st.warning(
+          "⏱️ Déconnexion automatique après 1 heure d'inactivité. Votre rapport"
+          " a bien été envoyé."
+      )
+      st.stop()
+
+
+# =========================================================================
+# INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION MANUELLE
 # =========================================================================
 if st.session_state.get("declencher_deconnexion", False):
   if st.session_state.user:
@@ -281,6 +305,9 @@ if st.session_state.user is None:
 
 # --- INTERFACE UTILISATEUR CONNECTÉ ---
 else:
+  # Actualisation de l'heure d'activité à chaque interaction
+  st.session_state.last_activity = datetime.now(fuseau_paris)
+
   user = st.session_state.user
   if URL_LOGO:
     st.sidebar.image(URL_LOGO, use_container_width=True)
@@ -293,7 +320,7 @@ else:
   if st.session_state.etape_utilisateur == "sparklets":
     st.title("💧 Gestion des Sparklets")
     st.write(
-        "Veuillez renseigner les quantités de sparklets."
+        "Veuillez renseigner vos mouvements de sparklets avant de continuer."
     )
 
     col_sp1, col_sp2 = st.columns(2)
@@ -335,7 +362,7 @@ else:
   # ÉTAPE 2 : TRAVAIL
   elif st.session_state.etape_utilisateur == "travail":
     if str(user.get("Role")).strip().lower() == "formateur":
-      st.title("🧯 Scan des Extincteurs")
+      st.title("🧯 Formateur - Scan des Extincteurs")
       id_scanne = qrcode_scanner(key="scanner_formateur")
 
       if id_scanne:
@@ -463,9 +490,7 @@ else:
           else:
             st.error("❌ Code QR introuvable.")
 
-  # =========================================================================
-  # DÉCONNEXION FINALE (Sortie des blocs de rôles : visible pour TOUT LE MONDE)
-  # =========================================================================
+  # DÉCONNEXION FINALE (Visible pour tout le monde, en bas de page)
   st.markdown("---")
   st.markdown(
       '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
