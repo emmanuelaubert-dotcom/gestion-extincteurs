@@ -6,6 +6,50 @@ import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 from zoneinfo import ZoneInfo
 
+
+# 1. Vérifier si un code est présent dans l'URL (suite à un F5)
+params = st.query_params
+if "active_code" in params and st.session_state.get("user") is None:
+  code_en_cours = params["active_code"]
+  # On va chercher le profil utilisateur rapidement
+  user_trouve = verifier_code_dans_base(code_en_cours)  # Votre fonction existante
+  if user_trouve:
+    st.session_state.user = user_trouve
+    # On replace l'étape où il était (ou par défaut sur son tableau de bord)
+    if "etape_actuelle" not in st.session_state:
+      st.session_state.etape_actuelle = "accueil_role"
+
+# 2. Dès qu'un utilisateur se connecte avec succès, on met à jour l'URL
+if st.session_state.get("user") is not None:
+  st.query_params["active_code"] = str(st.session_state.user.get("Code"))
+
+# 1. Configuration de la page
+st.set_page_config(
+    page_title="Gestion Extincteurs & Sparklets", page_icon="🧯", layout="wide"
+)
+
+# 2. Initialisation des variables de session de base
+if "user" not in st.session_state:
+  st.session_state.user = None
+if "session_actions" not in st.session_state:
+  st.session_state.session_actions = {}
+
+# =========================================================================
+# 3. INTERCEPTION PRIORITAIRE DE LA DÉCONNEXION (À placer ICI, tout en haut)
+# =========================================================================
+if st.session_state.get("declencher_deconnexion", False):
+  if st.session_state.user:
+    code_user = st.session_state.user.get("Code")
+    actions_bilan = st.session_state.get("session_actions", {})
+
+    # Appel de votre fonction de déconnexion (envoi du mail via Apps Script)
+    logout_user_backend(code_user, actions_bilan)
+
+  # Nettoyage total de la session pour purger le dernier extincteur en mémoire
+  st.session_state.clear()
+  st.query_params.clear()  # Nettoie aussi l'URL si vous utilisez query_params
+  st.rerun()
+
 # Fuseau horaire
 fuseau_paris = ZoneInfo("Europe/Paris")
 maintenant_paris = datetime.now(fuseau_paris)
@@ -433,20 +477,15 @@ else:
           else:
             st.error("❌ Code QR introuvable.")
 
-    # --- DÉCONNEXION FINALE ---
-    st.markdown("---")
-    st.markdown(
-        '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
-        " envoyer le bilan et vous déconnecter en toute sécurité !</div>",
-        unsafe_allow_html=True,
-    )
+  # --- DÉCONNEXION FINALE ---
+st.markdown("---")
+st.markdown(
+    '<div class="footer-deconnexion">⚠️ Une fois fini, cliquez ci-dessous pour'
+    " vous déconnecter en toute sécurité !</div>",
+    unsafe_allow_html=True,
+)
 
-    if st.button(
-        "🔒 Se déconnecter et envoyer le bilan", key="btn_deconnexion_bas"
-    ):
-      code_utilisateur = str(user.get("Code"))
-      actions_bilan = st.session_state.get("session_actions", None)
-
-      logout_user(code_utilisateur, actions_bilan)
-      st.session_state.clear()
-      st.rerun()
+if st.button("🔒 Se déconnecter ", key="btn_deconnexion_bas"):
+  # On active juste le drapeau : le bloc tout en haut du script fera le reste proprement
+  st.session_state["declencher_deconnexion"] = True
+  st.rerun()
