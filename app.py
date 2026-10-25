@@ -139,18 +139,41 @@ def update_sparklets(qte_pris, qte_depose, utilisateur, role, date):
     return None
 
 
-# --- ÉTATS GLOBAUX & PERSISTANCE URL (F5) ---
-if "user" not in st.session_state:
-  st.session_state.user = None
+# Fonction pour sauvegarder tout le contexte dans l'URL (pour le F5)
+def sauvegarder_contexte_url():
+  if st.session_state.get("user"):
+    st.query_params["active_code"] = str(st.session_state.user.get("Code"))
+    st.query_params["actions_json"] = json.dumps(
+        st.session_state.get("session_actions", {})
+    )
+    st.query_params["etape"] = str(
+        st.session_state.get("etape_utilisateur", "sparklets")
+    )
 
-# Restauration automatique en cas de rafraîchissement (F5)
+
+# --- RESTAURATION AUTOMATIQUE EN CAS DE F5 ---
 params = st.query_params
-if "active_code" in params and st.session_state.user is None:
+if "active_code" in params and st.session_state.get("user") is None:
   code_en_cours = params["active_code"]
   res = attempt_login(code_en_cours)
   if res and res.get("status") == "success":
     st.session_state.user = res.get("user")
 
+    # Restauration du bilan des actions
+    if "actions_json" in params:
+      try:
+        st.session_state.session_actions = json.loads(params["actions_json"])
+      except:
+        pass
+
+    # Restauration de l'étape (sparklets ou travail)
+    if "etape" in params:
+      st.session_state.etape_utilisateur = params["etape"]
+
+
+# --- ÉTATS GLOBAUX DE BASE ---
+if "user" not in st.session_state:
+  st.session_state.user = None
 if "last_activity" not in st.session_state:
   st.session_state.last_activity = datetime.now(fuseau_paris)
 if "session_actions" not in st.session_state:
@@ -182,7 +205,7 @@ if st.session_state.get("declencher_deconnexion", False):
   st.rerun()
 
 
-# Masquer la barre d'outils GitHub / Style CSS
+# Masquer la barre d'outils / Style CSS
 hide_toolbar = """
     <style>
     div[data-testid="stToolbar"] {
@@ -233,10 +256,6 @@ if st.session_state.user is None:
       res = attempt_login(code_saisi)
       if res and res.get("status") == "success":
         st.session_state.user = res.get("user")
-        
-        # On mémorise le code dans l'URL pour le F5
-        st.query_params["active_code"] = code_saisi
-        
         st.session_state.last_activity = datetime.now(fuseau_paris)
         st.session_state.session_actions = {
             "En formation": 0,
@@ -249,6 +268,9 @@ if st.session_state.user is None:
             "sparklets_deposees": 0,
         }
         st.session_state.etape_utilisateur = "sparklets"
+
+        # Sauvegarde initiale dans l'URL
+        sauvegarder_contexte_url()
         st.rerun()
       else:
         st.error("Code d'accès incorrect ou erreur serveur.")
@@ -303,6 +325,7 @@ else:
         st.session_state.session_actions["sparklets_deposees"] += qte_depose
 
       st.session_state.etape_utilisateur = "travail"
+      sauvegarder_contexte_url()  # Sauvegarde l'étape et les actions
       st.rerun()
 
   # ÉTAPE 2 : TRAVAIL
@@ -346,6 +369,9 @@ else:
                 st.session_state.session_actions["extincteurs_vides"].append(
                     f"{nom_extincteur} ({id_scanne})"
                 )
+
+              # Sauvegarde l'état et le bilan mis à jour dans l'URL (F5 safe)
+              sauvegarder_contexte_url()
           else:
             st.warning(f"⚠️ Cet extincteur est déjà au statut '{statut_actuel}'.")
         else:
@@ -386,6 +412,7 @@ else:
                 f"🚀 Départ validé pour {nb_pris} extincteur(s). Enregistré pour"
                 " le bilan."
             )
+            sauvegarder_contexte_url()  # Sauvegarde le lot dans l'URL
             st.rerun()
 
       else:
@@ -415,6 +442,7 @@ else:
                     f"✅ Extincteur **{nom_extincteur}** de retour et basculé en"
                     " **Plein** !"
                 )
+                sauvegarder_contexte_url()  # Sauvegarde le retour dans l'URL
             else:
               st.warning("⚠️ Cet extincteur est déjà au statut : **Plein**")
           else:
