@@ -6,6 +6,12 @@ import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 from zoneinfo import ZoneInfo
 
+# Configurations
+URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
+URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrTd_cnA9d7NZjjb9ijFMw5t0R_s2XmVqgRqjXY3M8Uzgah8Xy0cb2XXaK19Cfhs0/exec"
+
+
 
 # 1. Vérifier si un code est présent dans l'URL (suite à un F5)
 params = st.query_params
@@ -64,11 +70,6 @@ hide_toolbar = """
     </style>
 """
 st.markdown(hide_toolbar, unsafe_allow_html=True)
-
-# Configurations
-URL_LOGO = "https://www.centre-formation-securite.fr/wp-content/uploads/2018/11/logo-si2p-fond-clair.png"
-URL_FOND = "https://www.centre-formation-securite.fr/wp-content/uploads/triangle-si2p.png"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrTd_cnA9d7NZjjb9ijFMw5t0R_s2XmVqgRqjXY3M8Uzgah8Xy0cb2XXaK19Cfhs0/exec"
 
 st.set_page_config(
     page_title="Gestion Extincteurs",
